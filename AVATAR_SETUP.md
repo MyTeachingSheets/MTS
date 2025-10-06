@@ -18,38 +18,61 @@ Users can upload and update their profile pictures. Images are stored in Supabas
 ### 2. Set Storage Policies
 Go to the **Policies** tab for the `avatars` bucket and add these policies:
 
-#### Policy 1: Allow users to upload their own avatars
+⚠️ **IMPORTANT**: Delete any existing policies first, then add these exact ones:
+
+#### Policy 1: Allow authenticated users to upload
 ```sql
 -- Policy Name: "Users can upload their own avatar"
 -- Allowed operation: INSERT
 -- Target roles: authenticated
--- USING expression:
+-- Policy definition:
 true
-
--- WITH CHECK expression:
-(bucket_id = 'avatars')
 ```
+In the UI:
+- **Policy command**: INSERT
+- **Target roles**: authenticated
+- **WITH CHECK expression**: `true`
+- Leave USING expression empty for INSERT
 
-#### Policy 2: Allow public read access
+#### Policy 2: Allow public read access (CRITICAL - Don't skip!)
 ```sql
 -- Policy Name: "Public avatars are viewable by everyone"
 -- Allowed operation: SELECT
--- Target roles: public
--- USING expression:
-(bucket_id = 'avatars')
+-- Target roles**: anon, authenticated
+-- Policy definition:
+true
 ```
+In the UI:
+- **Policy command**: SELECT
+- **Target roles**: Select both `anon` AND `authenticated`
+- **USING expression**: `true`
 
-#### Policy 3: Allow users to update their own avatars
+#### Policy 3: Allow users to update their avatars
 ```sql
 -- Policy Name: "Users can update their own avatar"
 -- Allowed operation: UPDATE
 -- Target roles: authenticated
--- USING expression:
-(bucket_id = 'avatars')
-
--- WITH CHECK expression:
-(bucket_id = 'avatars')
+-- Policy definition:
+true
 ```
+In the UI:
+- **Policy command**: UPDATE
+- **Target roles**: authenticated
+- **USING expression**: `true`
+- **WITH CHECK expression**: `true`
+
+#### Policy 4: Allow users to delete (optional but recommended)
+```sql
+-- Policy Name: "Users can delete their own avatar"
+-- Allowed operation: DELETE
+-- Target roles: authenticated
+-- Policy definition:
+true
+```
+In the UI:
+- **Policy command**: DELETE
+- **Target roles**: authenticated
+- **USING expression**: `true`
 
 ---
 
@@ -130,20 +153,38 @@ true
 
 ## 🐛 Troubleshooting
 
+### ❌ "new row violates row-level security policy" (MOST COMMON)
+This means your storage policies are incorrect. **Follow these exact steps**:
+
+1. **Go to Supabase Dashboard** → Storage → `avatars` bucket → Policies tab
+2. **DELETE all existing policies**
+3. **Add the 4 policies from Section 2 above EXACTLY as written**
+4. **Critical checks**:
+   - ✅ Bucket must be PUBLIC (not private)
+   - ✅ INSERT policy: Target role = `authenticated`, WITH CHECK = `true`
+   - ✅ SELECT policy: Target roles = BOTH `anon` AND `authenticated`, USING = `true`
+   - ✅ UPDATE policy: Target role = `authenticated`, both expressions = `true`
+5. **Test again** - error should be gone
+
+**Quick fix**: Set all policy expressions to just `true` for testing. This allows all operations.
+
 ### "Failed to upload avatar"
 - **Check**: Storage bucket `avatars` exists and is public
-- **Check**: Storage policies are set correctly
+- **Check**: All 4 storage policies are added (see above)
 - **Check**: User is authenticated
+- **Try**: Browser console (F12) for detailed error message
 
 ### Avatar not showing in header
 - **Check**: `user.user_metadata.avatar_url` contains valid URL
-- **Refresh**: Browser cache might need clearing
-- **Check**: Image file is accessible (public URL works)
+- **Refresh**: Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)
+- **Check**: Image file is accessible (copy URL to new tab)
+- **Check**: SELECT policy allows public read
 
 ### Upload button not working
 - **Check**: Browser console for errors
 - **Check**: File size < 2MB
-- **Check**: File type is image/*
+- **Check**: File type is image/* (jpg, png, gif, webp)
+- **Try**: Different image file
 
 ---
 
