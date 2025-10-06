@@ -25,13 +25,17 @@ export default function Header() {
         <nav className="nav-actions" aria-label="Main navigation">
           {user ? (
             <>
-              <Link className="nav-btn" href="/profile">Profile</Link>
-              <button className="nav-btn" onClick={async () => { await supabase.auth.signOut(); window.location.reload() }}>Logout</button>
+              <Link className="nav-btn" href="/profile">
+                <span style={{marginRight:6}}>👤</span> Profile
+              </Link>
+              <button className="nav-btn" onClick={async () => { await supabase.auth.signOut(); window.location.reload() }}>
+                Logout
+              </button>
             </>
           ) : (
             <>
-              <Link className="nav-btn" href="/auth/login">Login</Link>
-              <Link className="nav-btn" href="/auth/register">Register</Link>
+              <Link className="nav-btn" href="/auth/login">Log In</Link>
+              <Link className="nav-btn primary" href="/auth/register">Sign Up</Link>
             </>
           )}
         </nav>
