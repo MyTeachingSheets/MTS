@@ -2,8 +2,8 @@
   /* Education-friendly professional palette */
   --primary-navy: #0b2b4a; /* deep navy for headers and primary actions */
   --primary-navy-dark: #072036;
-  --accent-amber: #ffb74d; /* warm accent for highlights and CTAs */
-  --accent-amber-dark: #f5a623;
+  --accent-amber: #5b7db1; /* slate-blue accent (replaces amber for a more professional look) */
+  --accent-amber-dark: #43608e;
   --muted-teal: #3aa6a2; /* supportive secondary color */
   --muted-teal-dark: #2a8f8b;
   --bg-light: #f6f8fb; /* very light neutral for backgrounds */
