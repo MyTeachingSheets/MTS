@@ -1,15 +1,33 @@
 export default function LogsPage({ logs = [], error = null }) {
+  async function handleLogout() {
+    try {
+      await fetch('/api/admin-logout', { method: 'POST' })
+      window.location.href = '/admin/login'
+    } catch (err) {
+      console.error('logout failed', err)
+      window.location.href = '/admin/login'
+    }
+  }
+
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Logs</h1>
-      {error && <div style={{ color: 'red' }}>Error: {error}</div>}
+    <div style={{ padding: 24, background: '#fff', color: '#111', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ margin: 0 }}>Logs</h1>
+        <div>
+          <button onClick={() => (window.location.href = '/')} style={{ marginRight: 8 }}>Home</button>
+          <button onClick={handleLogout} style={{ background: '#e53e3e', color: '#fff', border: 'none', padding: '6px 10px' }}>Logout</button>
+        </div>
+      </div>
+
+      {error && <div style={{ color: 'red', marginTop: 12 }}>Error: {error}</div>}
+
       <div style={{ marginTop: 12 }}>
-        {logs.length === 0 && <div>No logs found</div>}
+        {logs.length === 0 && <div style={{ color: '#444' }}>No logs found</div>}
         {logs.map((l) => (
-          <div key={l.id} style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-            <div style={{ fontSize: 12, color: '#666' }}>{l.ts} • {l.level}</div>
-            <div style={{ marginTop: 4 }}>{l.message}</div>
-            {l.meta && <pre style={{ marginTop: 6, background: '#f6f8fa', padding: 8, overflow: 'auto' }}>{JSON.stringify(l.meta, null, 2)}</pre>}
+          <div key={l.id} style={{ padding: 12, borderBottom: '1px solid #eee', background: '#fafafa', marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: '#666' }}>{new Date(l.ts).toLocaleString()} • {l.level}</div>
+            <div style={{ marginTop: 6, color: '#111' }}>{l.message}</div>
+            {l.meta && <pre style={{ marginTop: 6, background: '#fff', padding: 8, overflow: 'auto' }}>{JSON.stringify(l.meta, null, 2)}</pre>}
           </div>
         ))}
       </div>
