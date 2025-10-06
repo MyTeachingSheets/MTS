@@ -28,105 +28,69 @@ export default function Home() {
       <header className="top-nav" role="banner">
         <div className="nav-inner">
           <a className="nav-brand" href="/">MyTeachingSheets</a>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <div className="nav-search" style={{maxWidth:420}}>
-              <input aria-label="Search" placeholder="Search worksheets, grades, lessons..." />
-            </div>
-            <div className="nav-actions">
-              <a className="nav-btn" href="#features">Features</a>
-              <a className="nav-btn nav-btn--active" href="#contact">Contact</a>
-            </div>
-          </div>
+          <nav className="nav-actions" aria-label="Main navigation">
+            <a className="nav-btn" href="#features">Features</a>
+            <a className="nav-btn" href="#pricing">Pricing</a>
+            <a className="nav-btn nav-btn--active" href="#contact">Contact</a>
+          </nav>
         </div>
       </header>
 
       <main className="homepage" role="main">
-        <section className="hero-banner" aria-labelledby="hero-title">
-          <div className="hero-inner">
+        <section className="hero-banner" aria-labelledby="hero-title" style={{paddingTop:28}}>
+          <div className="hero-inner" style={{alignItems:'center'}}>
             <div className="hero-content">
-              <div className="hero-eyebrow">Trusted by teachers</div>
-              <h1 id="hero-title" className="hero-title">Beautiful, ready-to-use worksheets for every lesson</h1>
-              <p className="hero-sub">Save time with high-quality, printable worksheets and full answer keys — built for modern classrooms.</p>
-              <div style={{display:'flex',gap:12}}>
-                <a className="hero-cta" href="#features">Browse worksheets</a>
-                <a className="btn-package" href="#packages">View packages</a>
-              </div>
+              <h1 id="hero-title" className="hero-title">Fast, high-quality worksheets for teachers</h1>
+              <p className="hero-sub">Download ready-made worksheets, answer keys, and classroom packages that save hours of prep time each week.</p>
+              <p style={{marginTop:18}}>
+                <a className="hero-cta" href="#features">Explore worksheets</a>
+                <a className="btn-package" href="#pricing" style={{marginLeft:12}}>See pricing</a>
+              </p>
             </div>
             <div className="hero-media">
-              <div className="hero-preview">
-                <div className="preview-frame">Worksheet Preview</div>
-              </div>
+              <div className="preview-frame">Preview</div>
             </div>
           </div>
         </section>
 
-        <section id="features" style={{maxWidth:1100, width:'100%', paddingTop:28}}>
-          <h2 className="homepage-title">Featured worksheets</h2>
-          <div className="slideshow" aria-hidden>
-            <article className="slide" data-active="true">
-              <div className="slide-thumb">Math — Fractions</div>
-              <div className="slide-meta"><h3>Fraction practice</h3><p>Five printable pages with answers</p></div>
-            </article>
-            <article className="slide"><div className="slide-thumb">Science — Cells</div><div className="slide-meta"><h3>Cell structure</h3><p>Visual activities and lab worksheet</p></div></article>
-            <article className="slide"><div className="slide-thumb">English — Comprehension</div><div className="slide-meta"><h3>Reading comprehension</h3><p>Passage + guided questions</p></div></article>
+        <section id="features" style={{maxWidth:900, width:'100%', paddingTop:36}}>
+          <h2 className="homepage-title">Features</h2>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16,marginTop:12}}>
+            <div style={{background:'#fff',padding:16,borderRadius:10}}>
+              <h3>Ready to use</h3>
+              <p>Printable, editable PDFs and answer keys.</p>
+            </div>
+            <div style={{background:'#fff',padding:16,borderRadius:10}}>
+              <h3>Standards aligned</h3>
+              <p>Aligned to common curricula for quick planning.</p>
+            </div>
+            <div style={{background:'#fff',padding:16,borderRadius:10}}>
+              <h3>Affordable packages</h3>
+              <p>Flexible pricing for single teachers or schools.</p>
+            </div>
           </div>
         </section>
 
-        <section id="about" style={{maxWidth:1100, width:'100%', marginTop:40}}>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:28,alignItems:'start'}}>
+        <section id="cta" style={{maxWidth:900, width:'100%', paddingTop:36, textAlign:'center'}}>
+          <h2>Start saving time today</h2>
+          <p style={{marginTop:8}}>Create an account and get three free worksheets to try.</p>
+          <div style={{marginTop:12}}>
+            <a className="hero-cta" href="#signup">Get started — it's free</a>
+          </div>
+        </section>
+
+        <footer id="contact" className="site-footer" style={{padding:28, marginTop:36}}>
+          <div style={{maxWidth:900, margin:'0 auto', display:'flex', justifyContent:'space-between', alignItems:'center', gap:16}}>
             <div>
-              <h2>Why teachers love our resources</h2>
-              <ul>
-                <li>Ready to print and use in class</li>
-                <li>Aligned with common standards</li>
-                <li>Detailed answer keys for quick grading</li>
-              </ul>
+              <strong>Contact</strong>
+              <div style={{marginTop:6}}><a href={`mailto:${contactEmail}`}>{contactEmail}</a></div>
             </div>
-
-            <aside id="contact" className="auth-right" aria-labelledby="contact-heading">
-              <h3 id="contact-heading" className="auth-heading">Get in touch</h3>
-              <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label>Name</label>
-                  <input name="name" required />
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input name="email" type="email" required />
-                </div>
-                <div className="form-group">
-                  <label>Message</label>
-                  <textarea name="message" rows={4} required />
-                </div>
-                <div style={{display:'flex',gap:8,marginTop:8}}>
-                  <button className="btn-form" type="submit">Send message</button>
-                  <a className="ghost-btn" href={`mailto:${contactEmail}`}>Email us</a>
-                </div>
-              </form>
-              {status === 'loading' && <div style={{marginTop:8,color:'#666'}}>Sending…</div>}
-              {status === 'success' && <div style={{marginTop:8,color:'var(--success)'}}>Thanks — we'll be in touch.</div>}
-              {status === 'error' && <div style={{marginTop:8,color:'var(--error)'}}>Sorry, there was an error. Try again later.</div>}
-            </aside>
-          </div>
-        </section>
-
-        <section id="testimonials" style={{maxWidth:1100, width:'100%', marginTop:48}}>
-          <h2 className="homepage-title">What teachers say</h2>
-          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
-            <div style={{flex:'1 1 280px',background:'#fff',padding:16,borderRadius:10,boxShadow:'0 6px 18px rgba(0,0,0,0.06)'}}>
-              "These worksheets saved me hours of prep time." — Ms. Patel
-            </div>
-            <div style={{flex:'1 1 280px',background:'#fff',padding:16,borderRadius:10,boxShadow:'0 6px 18px rgba(0,0,0,0.06)'}}>
-              "Clear, printable and very well structured." — Mr. James
+            <div style={{textAlign:'right'}}>
+              <div>© {new Date().getFullYear()} MyTeachingSheets</div>
             </div>
           </div>
-        </section>
+        </footer>
       </main>
-
-      <footer className="site-footer" style={{padding:28,textAlign:'center'}}>
-        <div>© {new Date().getFullYear()} MyTeachingSheets</div>
-        <div style={{marginTop:8}}><small>Built with Next.js · <a href="/privacy">Privacy</a></small></div>
-      </footer>
     </div>
   )
 }
