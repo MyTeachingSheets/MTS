@@ -492,8 +492,8 @@ body{
 
 /* Fade animations for smooth content transition */
 .fade-out{
-  /* longer hide time so content is fully hidden while panels slide */
-  animation:fadeOut 0.6s ease-in-out forwards;
+  /* tuned hide time so content is fully hidden while panels slide */
+  animation:fadeOut 0.5s ease-in-out forwards;
 }
 
 .fade-in{

@@ -32,7 +32,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'register' })
     setPanelMode((p) => (p === 'login' ? 'register' : 'login'))
 
     // Wait for the form content to fully fade out (longer hide time), then swap content
-    const FADE_OUT_MS = 600 // double duration: 600ms
+  const FADE_OUT_MS = 500 // fade-out duration now 500ms
     setTimeout(() => {
       setContentMode((m) => (m === 'login' ? 'register' : 'login'))
       setEmail('')
