@@ -1,4 +1,41 @@
+import { useMemo, useState } from 'react'
+
+function LevelBadge({ level }) {
+  const color = level === 'error' ? 'var(--error)' : level === 'warn' ? '#f59e0b' : 'var(--muted)'
+  return (
+    <span className="log-badge" style={{ borderColor: color, color }}>
+      {level.toUpperCase()}
+    </span>
+  )
+}
+
 export default function LogsPage({ logs = [], error = null }) {
+  const [q, setQ] = useState('')
+  const [level, setLevel] = useState('')
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    return logs.filter((l) => {
+      if (level && l.level !== level) return false
+      if (!term) return true
+      return (
+        (l.message || '').toLowerCase().includes(term) ||
+        JSON.stringify(l.meta || {}).toLowerCase().includes(term)
+      )
+    })
+  }, [logs, q, level])
+
+  function downloadJSON() {
+    const data = JSON.stringify(filtered, null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `logs-${new Date().toISOString()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleLogout() {
     try {
       await fetch('/api/admin-logout', { method: 'POST' })
@@ -10,26 +47,50 @@ export default function LogsPage({ logs = [], error = null }) {
   }
 
   return (
-    <div style={{ padding: 24, background: '#fff', color: '#111', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ margin: 0 }}>Logs</h1>
-        <div>
-          <button onClick={() => (window.location.href = '/')} style={{ marginRight: 8 }}>Home</button>
-          <button onClick={handleLogout} style={{ background: '#e53e3e', color: '#fff', border: 'none', padding: '6px 10px' }}>Logout</button>
-        </div>
-      </div>
-
-      {error && <div style={{ color: 'red', marginTop: 12 }}>Error: {error}</div>}
-
-      <div style={{ marginTop: 12 }}>
-        {logs.length === 0 && <div style={{ color: '#444' }}>No logs found</div>}
-        {logs.map((l) => (
-          <div key={l.id} style={{ padding: 12, borderBottom: '1px solid #eee', background: '#fafafa', marginBottom: 8 }}>
-            <div style={{ fontSize: 12, color: '#666' }}>{new Date(l.ts).toLocaleString()} • {l.level}</div>
-            <div style={{ marginTop: 6, color: '#111' }}>{l.message}</div>
-            {l.meta && <pre style={{ marginTop: 6, background: '#fff', padding: 8, overflow: 'auto' }}>{JSON.stringify(l.meta, null, 2)}</pre>}
+    <div className="admin-logs-root">
+      <div className="admin-logs-inner">
+        <div className="admin-logs-header">
+          <h1>Logs</h1>
+          <div className="admin-logs-actions">
+            <button className="btn btn-ghost" onClick={() => (window.location.href = '/')}>
+              Home
+            </button>
+            <button className="btn btn-danger" onClick={handleLogout}>
+              Logout
+            </button>
           </div>
-        ))}
+        </div>
+
+        {error && <div className="admin-logs-error">Error: {error}</div>}
+
+        <div className="admin-logs-toolbar">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search message or meta..." />
+          <select value={level} onChange={(e) => setLevel(e.target.value)}>
+            <option value="">All levels</option>
+            <option value="info">Info</option>
+            <option value="warn">Warn</option>
+            <option value="error">Error</option>
+          </select>
+          <button className="btn" onClick={downloadJSON}>Export</button>
+        </div>
+
+        <div className="admin-logs-list">
+          {filtered.length === 0 && <div className="admin-logs-empty">No logs found</div>}
+          {filtered.map((l) => (
+            <article key={l.id} className="log-row">
+              <div className="log-row-left">
+                <div className="log-time">{new Date(l.ts).toLocaleString()}</div>
+                <LevelBadge level={l.level} />
+              </div>
+              <div className="log-row-main">
+                <div className="log-message">{l.message}</div>
+                {l.meta && (
+                  <pre className="log-meta">{JSON.stringify(l.meta, null, 2)}</pre>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   )
