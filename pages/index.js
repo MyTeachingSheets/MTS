@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import Link from 'next/link'
+import AuthModal from '../components/AuthModal'
 
 export default function Home() {
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authMode, setAuthMode] = useState('register')
   const featuredResources = [
     { id: 1, title: 'Math Worksheets Bundle', desc: 'Complete K-5 math practice sheets', icon: '🔢', rating: 4.9 },
     { id: 2, title: 'Reading Comprehension Pack', desc: 'Engaging stories with questions', icon: '📚', rating: 4.8 },
@@ -28,7 +32,7 @@ export default function Home() {
               Save hours of prep time with high-quality worksheets, activities, and lesson plans created by teachers, for teachers.
             </p>
             <div className="hero-actions">
-              <Link href="/auth/register" className="btn">Get Started Free</Link>
+              <button onClick={() => { setAuthMode('register'); setShowAuthModal(true); }} className="btn">Get Started Free</button>
               <Link href="#featured" className="btn btn-secondary">Browse Resources</Link>
             </div>
           </div>
@@ -73,7 +77,7 @@ export default function Home() {
           <p style={{fontSize:'1.2rem',color:'var(--text-secondary)',marginBottom:32,maxWidth:700,marginLeft:'auto',marginRight:'auto'}}>
             Create your free account and get access to thousands of teacher-created resources.
           </p>
-          <Link href="/auth/register" className="btn" style={{fontSize:'1.1rem',padding:'14px 32px'}}>Sign Up Today</Link>
+          <button onClick={() => { setAuthMode('register'); setShowAuthModal(true); }} className="btn" style={{fontSize:'1.1rem',padding:'14px 32px'}}>Sign Up Today</button>
         </section>
       </main>
 
@@ -91,6 +95,12 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        initialMode={authMode}
+      />
     </div>
   )
 }
