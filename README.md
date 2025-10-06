@@ -29,3 +29,14 @@ Next steps
 - Replace placeholder email and content
 - Add analytics and contact form
 - (Optional) integrate Tailwind CSS for faster styling
+
+Logging
+
+This project includes a simple logging API at `pages/api/logs.js`.
+
+- POST `/api/logs` with JSON { level, message, meta } to append a log entry. Stored in `.logs/logs.json` locally.
+- GET `/api/logs` returns the logs but is protected by the `LOG_ADMIN_TOKEN` environment variable — the request must include the header `x-admin-token` with the token value.
+
+Notes:
+- Writing to the local filesystem works for development but is not persistent on serverless platforms. For production, use an external log store (Datadog, Logflare, or a DB).
+
