@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
 import AuthModal from './AuthModal'
@@ -7,6 +7,8 @@ export default function Header() {
   const [user, setUser] = useState(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authMode, setAuthMode] = useState('login')
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const menuRef = useRef()
 
   useEffect(() => {
     async function load() {
@@ -21,17 +23,20 @@ export default function Header() {
     return () => listener?.subscription?.unsubscribe()
   }, [])
 
+  // click outside to close profile menu
+  useEffect(() => {
+    function onDoc(e){
+      if (showProfileMenu && menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('click', onDoc)
+    return () => document.removeEventListener('click', onDoc)
+  }, [showProfileMenu])
+
   const openAuthModal = (mode) => {
     setAuthMode(mode)
     setShowAuthModal(true)
-  }
-
-  const handleSearch = (e) => {
-    e.preventDefault()
-    const q = e.target.elements.search?.value?.trim()
-    if (!q) return
-    // Navigate to search page with query
-    window.location.href = `/search?q=${encodeURIComponent(q)}`
   }
 
   return (
@@ -39,20 +44,31 @@ export default function Header() {
       <header className="top-nav" role="banner">
         <div className="nav-inner">
           <Link className="nav-brand" href="/">MyTeachingSheets</Link>
-          <form className="nav-search" onSubmit={handleSearch} role="search">
-            <input name="search" className="nav-search-input" placeholder="Search resources, grades, topics..." aria-label="Search" />
-            <button className="nav-search-btn" type="submit">🔍</button>
-          </form>
           <nav className="nav-actions" aria-label="Main navigation">
             {user ? (
-              <>
-                <Link className="nav-btn" href="/profile">
-                  <span style={{marginRight:6}}>👤</span> Profile
-                </Link>
-                <button className="nav-btn" onClick={async () => { await supabase.auth.signOut(); window.location.reload() }}>
-                  Logout
+              <div ref={menuRef} style={{position:'relative'}}>
+                <button
+                  className="nav-btn profile-btn"
+                  aria-haspopup="true"
+                  aria-expanded={showProfileMenu}
+                  onClick={() => setShowProfileMenu((s) => !s)}
+                >
+                  {user.user_metadata?.avatar_url ? (
+                    <img src={user.user_metadata.avatar_url} alt="Profile" className="profile-avatar" />
+                  ) : (
+                    <div className="profile-avatar profile-initials">{(user.email || '').charAt(0).toUpperCase()}</div>
+                  )}
                 </button>
-              </>
+
+                {showProfileMenu && (
+                  <div className="profile-dropdown" role="menu">
+                    <Link href="/profile" className="profile-item" role="menuitem" onClick={() => setShowProfileMenu(false)}>Profile</Link>
+                    <button className="profile-item" role="menuitem" onClick={async () => { await supabase.auth.signOut(); window.location.reload() }}>
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <button className="nav-btn" onClick={() => openAuthModal('login')}>Log In</button>
