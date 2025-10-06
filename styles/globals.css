@@ -77,7 +77,8 @@ body{
 }
 
 /* Profile avatar and dropdown */
-.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:999px;background:transparent;border:none;cursor:pointer}
+.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:36px;height:36px;border-radius:50%;background:transparent;border:none;cursor:pointer}
+.profile-btn:focus{outline:none;box-shadow:0 0 0 3px rgba(58,166,162,0.12);border-radius:50%}
 .profile-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;display:block}
 .profile-initials{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--primary-navy);color:white;font-weight:700}
 .profile-dropdown{position:absolute;right:0;top:44px;background:white;border:1px solid var(--border-light);box-shadow:var(--shadow-md);border-radius:8px;min-width:160px;overflow:hidden;z-index:20}
