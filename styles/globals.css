@@ -4,6 +4,7 @@
   --primary-navy-dark: #072036;
   --accent-amber: #5b7db1; /* slate-blue accent (replaces amber for a more professional look) */
   --accent-amber-dark: #43608e;
+  --accent-gold: #f6b93b; /* warm gold accent for highlights */
   --muted-teal: #3aa6a2; /* supportive secondary color */
   --muted-teal-dark: #2a8f8b;
   --bg-light: #f6f8fb; /* very light neutral for backgrounds */
@@ -78,6 +79,23 @@ body{
 
 /* Profile avatar and dropdown */
 .profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:40px;height:40px;border-radius:999px;background:transparent;border:none;cursor:pointer;overflow:hidden}
+.profile-btn::before{
+  /* subtle circular outline */
+  content:'';
+  position:absolute;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  border:2px solid rgba(11,43,74,0.06);
+  pointer-events:none;
+}
+.profile-btn:focus{
+  outline:none;
+}
+.profile-btn:focus-visible::before{
+  border-color:var(--muted-teal);
+  box-shadow:0 0 0 4px rgba(58,166,162,0.12);
+}
 .profile-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;display:block}
 .profile-initials{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--primary-navy);color:white;font-weight:700}
 .profile-dropdown{position:absolute;right:0;top:44px;background:white;border:1px solid var(--border-light);box-shadow:var(--shadow-md);border-radius:8px;min-width:160px;overflow:hidden;z-index:20}
@@ -152,6 +170,30 @@ body{
   color:var(--text-primary);
   transform:none;
 }
+
+/* Prominent Generate button */
+.btn-generate{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--muted-teal),var(--accent-amber),var(--accent-gold));
+  color:white !important;
+  font-weight:700;
+  border:none;
+  box-shadow:0 6px 18px rgba(10,90,120,0.12);
+  transition:transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.btn-generate:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 28px rgba(10,90,120,0.14);
+  /* keep gradient and white text, overriding .nav-btn:hover */
+  background:linear-gradient(90deg,var(--muted-teal),var(--accent-amber)) !important;
+  color: white !important;
+}
+.btn-generate:active{transform:translateY(0)}
+.btn-generate:focus{outline:none;box-shadow:0 0 0 4px rgba(58,166,162,0.12);background:linear-gradient(90deg,var(--muted-teal),var(--accent-amber)) !important;color:white !important}
 
 /* Simple form input used on profile page */
 .input-text{
