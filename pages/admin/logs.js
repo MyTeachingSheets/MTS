@@ -21,7 +21,13 @@ export default function LogsPage({ logs = [], error = null }) {
 export async function getServerSideProps(ctx) {
   const token = ctx.req.cookies?.['log_admin_token'] || ''
   if (!process.env.LOG_ADMIN_TOKEN || token !== process.env.LOG_ADMIN_TOKEN) {
-    return { props: { logs: [], error: 'forbidden' } }
+    // redirect to login page when not authenticated
+    return {
+      redirect: {
+        destination: '/admin/login',
+        permanent: false,
+      },
+    }
   }
 
   // call internal API with header (server-side)
