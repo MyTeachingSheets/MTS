@@ -7,6 +7,9 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [username, setUsername] = useState('')
+  const [savingUsername, setSavingUsername] = useState(false)
+  const [usernameMessage, setUsernameMessage] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -17,7 +20,9 @@ export default function ProfilePage() {
           data: { session },
         } = await supabase.auth.getSession()
         if (!mounted) return
-        setUser(session?.user ?? null)
+  setUser(session?.user ?? null)
+  // Pre-fill username from metadata
+  setUsername(session?.user?.user_metadata?.username ?? '')
       } catch (err) {
         console.error('Could not get session', err)
         if (!mounted) return
@@ -106,6 +111,38 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleSaveUsername() {
+    // Basic client-side validation: 3-30 chars, letters, numbers, _, -
+    setUsernameMessage(null)
+    const trimmed = (username || '').trim()
+    if (trimmed.length < 3 || trimmed.length > 30) {
+      setUsernameMessage({ type: 'error', text: 'Username must be 3–30 characters long.' })
+      return
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) {
+      setUsernameMessage({ type: 'error', text: 'Username may only contain letters, numbers, underscores and dashes.' })
+      return
+    }
+
+    try {
+      setSavingUsername(true)
+      const { error } = await supabase.auth.updateUser({ data: { username: trimmed } })
+      if (error) throw error
+
+      // Refresh session/user info
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user ?? null)
+
+      setUsernameMessage({ type: 'success', text: 'Username updated successfully.' })
+      setTimeout(() => setUsernameMessage(null), 3000)
+    } catch (err) {
+      console.error('Update username error', err)
+      setUsernameMessage({ type: 'error', text: err.message || 'Failed to update username' })
+    } finally {
+      setSavingUsername(false)
+    }
+  }
+
   if (loading) return (
     <div className="content-section" style={{minHeight:'60vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
       <p style={{color:'var(--text-secondary)'}}>Loading profile…</p>
@@ -175,6 +212,27 @@ export default function ProfilePage() {
         <div style={{marginBottom:24}}>
           <label style={{display:'block',fontWeight:600,marginBottom:8,color:'var(--text-primary)'}}>Email</label>
           <div style={{padding:12,background:'var(--bg-light)',borderRadius:'var(--radius-sm)',color:'var(--text-secondary)'}}>{user.email}</div>
+        </div>
+
+        <div style={{marginBottom:24}}>
+          <label style={{display:'block',fontWeight:600,marginBottom:8,color:'var(--text-primary)'}}>Username</label>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="input-text"
+              style={{padding:10,borderRadius:'var(--radius-sm)',border:'1px solid var(--border-light)',flex:1}}
+              placeholder="choose-a-username"
+            />
+            <button onClick={handleSaveUsername} disabled={savingUsername} className="btn" style={{whiteSpace:'nowrap'}}>
+              {savingUsername ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+          {usernameMessage && (
+            <div className={`upload-message ${usernameMessage.type === 'error' ? 'error' : 'success'}`} style={{marginTop:12}}>
+              {usernameMessage.type === 'error' ? '❌ ' : '✓ '}{usernameMessage.text}
+            </div>
+          )}
         </div>
 
         <div style={{marginBottom:24}}>
