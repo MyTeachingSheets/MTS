@@ -64,3 +64,16 @@ Security notes:
 - Keep `SUPABASE_SERVICE_ROLE_KEY` and `LOG_ADMIN_TOKEN` secret (use Vercel/GitHub Secrets).
 - The admin page `/admin/logs` now uses server-side rendering to avoid exposing secrets to the browser. For stronger controls, use Row Level Security (RLS) and a restricted insert function rather than the service role key.
 
+Auth (register / login)
+
+You can enable simple email/password authentication using Supabase's client (browser) SDK. Add these public keys to your environment (these are safe to expose in the browser):
+
+- `NEXT_PUBLIC_SUPABASE_URL` — same as SUPABASE_URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the anon/public key from Supabase API Keys
+
+Pages added:
+- `/auth/register` — user sign up (email/password)
+- `/auth/login` — user login (email/password)
+
+On the Supabase dashboard, copy the anon/public key from Settings → API → Project API Keys and add it to your environment (Vercel or `.env.local`).
+
