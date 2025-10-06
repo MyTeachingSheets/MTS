@@ -15,6 +15,8 @@
 
 ### Step 3: Add These 4 NEW Policies
 
+**Option A: Use the UI (Easier)**
+
 ---
 
 #### 📤 **Policy #1: INSERT (Upload)**
@@ -24,8 +26,32 @@ Click: "New Policy" button
 - **Policy Name**: `Users can upload avatars`
 - **Policy Command**: SELECT `INSERT` from dropdown
 - **Target Roles**: Check ✅ `authenticated`
-- **WITH CHECK expression**: Type: `true`
+- **WITH CHECK expression**: Type: `bucket_id = 'avatars'`
 - Click **Review** → **Save Policy**
+
+**Option B: Use SQL (Faster)** 
+
+Go to SQL Editor in Supabase and run these 4 commands:
+
+```sql
+CREATE POLICY "Users can upload avatars" ON storage.objects 
+FOR INSERT TO authenticated 
+WITH CHECK (bucket_id = 'avatars');
+
+CREATE POLICY "Public can view avatars" ON storage.objects 
+FOR SELECT TO anon, authenticated 
+USING (bucket_id = 'avatars');
+
+CREATE POLICY "Users can update avatars" ON storage.objects 
+FOR UPDATE TO authenticated 
+USING (bucket_id = 'avatars');
+
+CREATE POLICY "Users can delete avatars" ON storage.objects 
+FOR DELETE TO authenticated 
+USING (bucket_id = 'avatars');
+```
+
+✅ **These are the CORRECT policies!** Your SQL is perfect.
 
 ---
 
@@ -36,7 +62,7 @@ Click: "New Policy" button
 - **Policy Name**: `Public can view avatars`
 - **Policy Command**: SELECT `SELECT` from dropdown
 - **Target Roles**: Check ✅ **BOTH** `anon` AND `authenticated`
-- **USING expression**: Type: `true`
+- **USING expression**: Type: `bucket_id = 'avatars'`
 - Click **Review** → **Save Policy**
 
 ---
@@ -48,8 +74,7 @@ Click: "New Policy" button
 - **Policy Name**: `Users can update avatars`
 - **Policy Command**: SELECT `UPDATE` from dropdown
 - **Target Roles**: Check ✅ `authenticated`
-- **USING expression**: Type: `true`
-- **WITH CHECK expression**: Type: `true`
+- **USING expression**: Type: `bucket_id = 'avatars'`
 - Click **Review** → **Save Policy**
 
 ---
@@ -61,7 +86,7 @@ Click: "New Policy" button
 - **Policy Name**: `Users can delete avatars`
 - **Policy Command**: SELECT `DELETE` from dropdown
 - **Target Roles**: Check ✅ `authenticated`
-- **USING expression**: Type: `true`
+- **USING expression**: Type: `bucket_id = 'avatars'`
 - Click **Review** → **Save Policy**
 
 ---
