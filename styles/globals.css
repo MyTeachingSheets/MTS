@@ -390,6 +390,16 @@ body{
   to{transform:translateY(0);opacity:1}
 }
 
+@keyframes fadeOut{
+  from{opacity:1}
+  to{opacity:0}
+}
+
+@keyframes fadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+
 .auth-modal-close{
   position:absolute;
   top:20px;
@@ -470,9 +480,25 @@ body{
   letter-spacing:1px;
 }
 
-.auth-toggle-btn:hover{
+.auth-toggle-btn:hover:not(:disabled){
   background:white;
   color:var(--tpt-teal);
+}
+
+.auth-toggle-btn:disabled{
+  opacity:0.7;
+  cursor:not-allowed;
+}
+
+/* Fade animations for smooth content transition */
+.fade-out{
+  /* longer hide time so content is fully hidden while panels slide */
+  animation:fadeOut 0.6s ease-in-out forwards;
+}
+
+.fade-in{
+  /* quick reveal when content is ready */
+  animation:fadeIn 0.3s ease-in-out forwards;
 }
 
 /* Right Panel - Form Side */
