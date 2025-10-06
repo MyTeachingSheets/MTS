@@ -26,11 +26,23 @@ export default function Header() {
     setShowAuthModal(true)
   }
 
+  const handleSearch = (e) => {
+    e.preventDefault()
+    const q = e.target.elements.search?.value?.trim()
+    if (!q) return
+    // Navigate to search page with query
+    window.location.href = `/search?q=${encodeURIComponent(q)}`
+  }
+
   return (
     <>
       <header className="top-nav" role="banner">
         <div className="nav-inner">
           <Link className="nav-brand" href="/">MyTeachingSheets</Link>
+          <form className="nav-search" onSubmit={handleSearch} role="search">
+            <input name="search" className="nav-search-input" placeholder="Search resources, grades, topics..." aria-label="Search" />
+            <button className="nav-search-btn" type="submit">🔍</button>
+          </form>
           <nav className="nav-actions" aria-label="Main navigation">
             {user ? (
               <>
