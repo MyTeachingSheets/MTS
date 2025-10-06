@@ -1,5 +1,103 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useRouter } from 'next/router'
+
+export default function ProfilePage(){
+  const [user, setUser] = useState(null)
+  const [avatarUrl, setAvatarUrl] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState(null)
+  const router = useRouter()
+
+  useEffect(()=>{
+    async function load(){
+      const { data } = await supabase.auth.getSession()
+      const u = data?.session?.user ?? null
+      if(!u) return router.push('/')
+      setUser(u)
+      setAvatarUrl(u.user_metadata?.avatar_url ?? null)
+    }
+    load()
+  },[])
+
+  async function handleUpload(e){
+    const file = e.target.files?.[0]
+    if(!file) return
+    setMessage(null)
+    setUploading(true)
+
+    try{
+      const filename = `${user.id}-${Date.now()}-${file.name}`
+      // upload to avatars bucket
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('avatars')
+        .upload(filename, file, { cacheControl: '3600', upsert: false })
+
+      if(uploadErr){
+        // If bucket doesn't exist or upload fails, surface error
+        setMessage({type:'error', text: uploadErr.message})
+        setUploading(false)
+        return
+      }
+
+      // get public URL
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
+      const publicUrl = urlData.publicUrl
+
+      // update user metadata
+      const { error: updateErr } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } })
+      if(updateErr){
+        setMessage({type:'error', text: updateErr.message})
+      } else {
+        setAvatarUrl(publicUrl)
+        setMessage({type:'success', text: 'Avatar updated.'})
+        // refresh auth session on client
+        const { data } = await supabase.auth.getSession()
+        setUser(data?.session?.user ?? user)
+      }
+    }catch(err){
+      setMessage({type:'error', text: String(err)})
+    }finally{
+      setUploading(false)
+    }
+  }
+
+  if(!user) return null
+
+  return (
+    <div className="content-section">
+      <div style={{maxWidth:700,margin:'0 auto',background:'var(--bg-white)',padding:28,borderRadius:12,boxShadow:'var(--shadow-md)'}}>
+        <h2 className="section-title">Your Profile</h2>
+        <p>Update your profile picture. Images will be stored in Supabase Storage.</p>
+
+        <div style={{display:'flex',gap:24,alignItems:'center',marginTop:20}}>
+          <div>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="avatar" style={{width:120,height:120,borderRadius:999,objectFit:'cover'}} />
+            ) : (
+              <div style={{width:120,height:120,borderRadius:999,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--primary-navy)',color:'white',fontSize:36,fontWeight:700}}>
+                {(user.email||'').charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          <div style={{flex:1}}>
+            <label className="btn-secondary" style={{display:'inline-block',cursor:'pointer'}}>
+              {uploading ? 'Uploading...' : 'Choose New Avatar'}
+              <input type="file" accept="image/*" onChange={handleUpload} style={{display:'none'}} />
+            </label>
+
+            {message && (
+              <div style={{marginTop:12}} className={`msg ${message.type==='error'?'error':''}`}>{message.text}</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
