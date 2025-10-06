@@ -77,13 +77,24 @@ body{
 }
 
 /* Profile avatar and dropdown */
-.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:36px;height:36px;border-radius:50%;background:transparent;border:none;cursor:pointer}
-.profile-btn:focus{outline:none;box-shadow:0 0 0 3px rgba(58,166,162,0.12);border-radius:50%}
+.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:999px;background:transparent;border:none;cursor:pointer}
 .profile-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;display:block}
 .profile-initials{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--primary-navy);color:white;font-weight:700}
 .profile-dropdown{position:absolute;right:0;top:44px;background:white;border:1px solid var(--border-light);box-shadow:var(--shadow-md);border-radius:8px;min-width:160px;overflow:hidden;z-index:20}
 .profile-item{display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;background:white;border:none;width:100%;text-align:left;cursor:pointer}
 .profile-item:hover{background:var(--bg-light)}
+
+/* Profile page avatar upload */
+.profile-avatar-section{display:flex;flex-direction:column;align-items:center;gap:12px}
+.profile-avatar-large{width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid var(--border-light)}
+.profile-avatar-placeholder{background:linear-gradient(135deg, var(--muted-teal), var(--accent-amber));display:flex;align-items:center;justify-content:center;color:white;font-size:3rem;font-weight:700}
+.avatar-upload-btn{padding:8px 20px;background:var(--primary-navy);color:white;border-radius:var(--radius-md);font-size:0.9rem;font-weight:600;cursor:pointer;transition:all 0.2s;text-align:center}
+.avatar-upload-btn:hover{background:var(--primary-navy-dark);transform:translateY(-1px)}
+.avatar-upload-btn:active{transform:translateY(0)}
+.upload-message{padding:10px 14px;border-radius:var(--radius-sm);font-size:0.9rem;font-weight:500}
+.upload-message.error{background:#fee;color:#c00;border:1px solid #fcc}
+.upload-message.success{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+
 .nav-btn.primary{
   background:var(--primary-navy);
   color:white;
