@@ -24,6 +24,17 @@ export default function Home() {
   return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column'}}>
       <main>
+        {/* Category pills placed between header and hero */}
+        <div style={{background:'transparent'}}>
+          <div className="category-pills" aria-label="Browse categories" style={{maxWidth:1200,margin:'0 auto'}}>
+            {['Grade','Resource type','Seasonal','ELA','Math','Science','Social studies','Languages','Arts','Special education','Speech therapy'].map(cat => (
+              <button key={cat} className="pill" onClick={() => { /* future: filter by category */ }}>
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Hero Section */}
         <section className="hero-section">
           <div className="hero-content">
@@ -38,7 +49,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Categories */}
         <section className="content-section">
           <h2 className="section-title">Explore by Grade Level</h2>
           <div className="category-grid">
