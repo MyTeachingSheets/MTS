@@ -28,8 +28,8 @@
   border-bottom: 1px solid var(--border-light) !important;
 }
 .top-nav .nav-inner, header.top-nav .nav-inner{
-  height:72px !important;
-  padding:0 24px !important;
+  height:88px !important;
+  padding:0 28px !important;
 }
 .top-nav .nav-brand, header.top-nav .nav-brand{
   color: var(--primary-navy) !important;
@@ -80,11 +80,11 @@ body{
 .nav-inner{
   max-width:1280px;
   margin:0 auto;
-  padding:0 24px;
+  padding:0 28px;
   display:flex;
   align-items:center;
   justify-content:space-between;
-  height:72px; /* increased height */
+  height:88px; /* increased height */
 }
 
 /* Header search */
@@ -104,9 +104,26 @@ body{
   font-weight:700;
   color:var(--primary-navy);
   text-decoration:none;
-  transition:color 0.2s;
+  transition:opacity 0.2s;
+  display:flex;
+  align-items:center;
 }
-.nav-brand:hover{color:var(--primary-navy-dark);}
+.nav-brand:hover{opacity:0.8;}
+
+/* Site logo - optimized for 80×40px dimensions (2:1 ratio) */
+.site-logo{
+  height:56px; /* larger logo for roomier header */
+  width:112px;
+  display:block;
+  transition:opacity 0.2s, transform 0.15s;
+}
+
+@media(max-width:768px){
+  .site-logo{
+    height:40px;
+    width:80px;
+  }
+}
 .nav-actions{
   display:flex;
   align-items:center;
@@ -130,13 +147,13 @@ body{
 }
 
 /* Profile avatar and dropdown */
-.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:44px;height:44px;border-radius:999px;background:transparent;border:none;cursor:pointer;overflow:hidden}
+.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:52px;height:52px;border-radius:999px;background:transparent;border:none;cursor:pointer;overflow:hidden}
 .profile-btn::before{
   /* subtle circular outline */
   content:'';
   position:absolute;
-  width:48px;
-  height:48px;
+  width:56px;
+  height:56px;
   border-radius:50%;
   border:2px solid rgba(11,43,74,0.06);
   pointer-events:none;
@@ -152,8 +169,8 @@ body{
   border-color:var(--muted-teal);
   box-shadow:0 0 0 4px rgba(58,166,162,0.12);
 }
-.profile-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;display:block}
-.profile-initials{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--primary-navy);color:white;font-weight:700}
+.profile-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;display:block}
+.profile-initials{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--primary-navy);color:white;font-weight:700}
 .profile-dropdown{position:absolute;right:0;top:52px;background:white;border:1px solid var(--border-light);box-shadow:var(--shadow-md);border-radius:8px;min-width:160px;overflow:hidden;z-index:20}
 .profile-item{display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;background:white;border:none;width:100%;text-align:left;cursor:pointer}
 .profile-item:hover{background:var(--bg-light)}
