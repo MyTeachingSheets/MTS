@@ -123,6 +123,18 @@ body{
 @media(max-width:900px){
   .site-logo{height:40px;width:80px}
 }
+
+/* Strong override: ensure logo image is displayed and visible even if other stylesheets
+   (for example public/style.css) attempt to hide or recolor it. We use specific selectors
+   and !important here to guarantee visibility on deployment hosts. */
+header.top-nav .nav-inner .nav-brand img.site-logo,
+.top-nav .nav-brand img.site-logo{
+  display:block !important;
+  opacity:1 !important;
+  height:56px !important;
+  width:auto !important;
+  max-width:180px !important;
+}
 .nav-actions{
   display:flex;
   align-items:center;
