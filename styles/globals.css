@@ -18,6 +18,45 @@
   --radius-md: 10px;
   --radius-lg: 16px;
 }
+
+/* Strong override: ensure header is white when another stylesheet (e.g. public/style.css)
+   defines a gradient. We use higher specificity + !important to win in the cascade. */
+.top-nav, header.top-nav{
+  background: var(--bg-white) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+.top-nav .nav-inner, header.top-nav .nav-inner{
+  height:72px !important;
+  padding:0 24px !important;
+}
+.top-nav .nav-brand, header.top-nav .nav-brand{
+  color: var(--primary-navy) !important;
+}
+/* make sure search input contrasts on white header */
+.top-nav .nav-search input,
+.top-nav .header-search .search-input,
+.header-search .search-input{
+  background: var(--bg-light) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-light) !important;
+}
+/* buttons in the header should be minimal on white background */
+.top-nav .nav-btn,
+.top-nav .btn-generate,
+.nav-actions .nav-btn{
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.top-nav .btn-generate{
+  background: var(--primary-navy) !important;
+  color: #fff !important;
+  border: none !important;
+}
+
 *{box-sizing:border-box;}
 html,body,#__next{height:100%;margin:0;padding:0;}
 body{
@@ -36,7 +75,7 @@ body{
   position:sticky;
   top:0;
   z-index:100;
-  box-shadow:var(--shadow-sm);
+  /* remove shadow for a flatter look */
 }
 .nav-inner{
   max-width:1280px;
@@ -45,76 +84,66 @@ body{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  height:72px;
-  position:relative; /* allow centered absolute search */
+  height:72px; /* increased height */
 }
 
 /* Header search */
-.header-search{
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  width:62%;
-  max-width:820px;
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:6px 8px;
-  background:var(--bg-white);
-  border-radius:999px;
-  box-shadow:0 6px 20px rgba(19,34,51,0.06);
-}
-.search-input{flex:1;padding:10px 14px;border-radius:999px;border:none;background:transparent;font-size:0.98rem;color:var(--text-primary)}
-.search-input::placeholder{color:var(--text-secondary)}
-.search-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px;border-radius:999px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:0.98rem}
-.search-btn svg{display:block;color:currentColor}
-.search-btn:hover{color:var(--text-primary);background:transparent}
-.search-btn:focus{outline:none;box-shadow:none}
+.header-search{display:flex;align-items:center;gap:6px;margin-left:24px;flex:1;max-width:520px}
+.search-input{flex:1;padding:10px 16px;border-radius:999px;border:1px solid var(--border-light);background:var(--bg-light);font-size:0.95rem}
+.search-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:999px;border:none;background:var(--primary-navy);color:white;cursor:pointer;font-size:0.95rem;transition:background 0.2s}
+.search-btn svg{display:block;color:white}
+.search-btn:hover{background:var(--primary-navy-dark)}
+.search-btn:focus{outline:none;box-shadow:0 0 0 4px rgba(11,43,74,0.12)}
+.search-input:focus{outline:none;box-shadow:0 0 0 3px rgba(58,166,162,0.06);border-color:var(--muted-teal);background:white}
 
 @media(max-width:900px){
   .header-search{display:none}
 }
 .nav-brand{
-  font-size:1.15rem;
-  font-weight:600;
-  color:var(--text-primary);
+  font-size:1.35rem;
+  font-weight:700;
+  color:var(--primary-navy);
   text-decoration:none;
-  transition:color 0.12s;
+  transition:color 0.2s;
 }
-.nav-brand:hover{color:var(--text-primary);}
+.nav-brand:hover{color:var(--primary-navy-dark);}
 .nav-actions{
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:16px; /* increased gap */
 }
 .nav-btn{
   background:transparent;
   border:none;
   color:var(--text-secondary);
   text-decoration:none;
-  padding:6px 10px;
-  border-radius:10px;
+  padding:8px 16px;
+  border-radius:var(--radius-sm);
   font-size:0.95rem;
   font-weight:500;
   cursor:pointer;
-  transition:color 0.12s, background 0.12s;
+  transition:all 0.2s;
 }
 .nav-btn:hover{
   color:var(--text-primary);
-  background:transparent;
+  background:var(--bg-light);
 }
 
 /* Profile avatar and dropdown */
-.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:36px;height:36px;border-radius:999px;background:transparent;border:none;cursor:pointer;overflow:hidden}
+.profile-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:44px;height:44px;border-radius:999px;background:transparent;border:none;cursor:pointer;overflow:hidden}
 .profile-btn::before{
   /* subtle circular outline */
   content:'';
   position:absolute;
-  width:44px;
-  height:44px;
+  width:48px;
+  height:48px;
   border-radius:50%;
   border:2px solid rgba(11,43,74,0.06);
   pointer-events:none;
+  transition: all 0.2s;
+}
+.profile-btn:hover::before {
+  border-color: rgba(11,43,74,0.1);
 }
 .profile-btn:focus{
   outline:none;
@@ -123,9 +152,9 @@ body{
   border-color:var(--muted-teal);
   box-shadow:0 0 0 4px rgba(58,166,162,0.12);
 }
-.profile-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;display:block}
-.profile-initials{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--primary-navy);color:white;font-weight:700}
-.profile-dropdown{position:absolute;right:0;top:44px;background:white;border:1px solid var(--border-light);box-shadow:var(--shadow-md);border-radius:8px;min-width:160px;overflow:hidden;z-index:20}
+.profile-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;display:block}
+.profile-initials{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--primary-navy);color:white;font-weight:700}
+.profile-dropdown{position:absolute;right:0;top:52px;background:white;border:1px solid var(--border-light);box-shadow:var(--shadow-md);border-radius:8px;min-width:160px;overflow:hidden;z-index:20}
 .profile-item{display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;background:white;border:none;width:100%;text-align:left;cursor:pointer}
 .profile-item:hover{background:var(--bg-light)}
 
@@ -186,8 +215,8 @@ body{
 /* Ensure profile button doesn't inherit nav-btn hover styles when used together */
 .nav-btn.profile-btn{
   padding:0;
-  width:40px;
-  height:40px;
+  width:44px;
+  height:44px;
   border-radius:50%;
   background:transparent;
   box-shadow:none;
@@ -198,26 +227,27 @@ body{
   transform:none;
 }
 
-/* Minimal Generate button */
+/* Prominent Generate button */
 .btn-generate{
   display:inline-flex;
   align-items:center;
   gap:8px;
   padding:8px 16px;
   border-radius:999px;
-  background:var(--primary-navy);
+  background: var(--primary-navy);
   color:white !important;
   font-weight:600;
   border:none;
-  transition:background 0.2s, transform 0.15s;
+  box-shadow:none;
+  transition: all 0.2s;
 }
 .btn-generate:hover{
   background:var(--primary-navy-dark) !important;
   color: white !important;
-  transform:translateY(-1px);
+  transform: translateY(-1px);
 }
 .btn-generate:active{transform:translateY(0)}
-.btn-generate:focus{outline:none;box-shadow:0 0 0 3px rgba(11,43,74,0.15);background:var(--primary-navy) !important;color:white !important}
+.btn-generate:focus{outline:none;box-shadow:0 0 0 4px rgba(11,43,74,0.12);background:var(--primary-navy-dark) !important;color:white !important}
 
 /* Simple form input used on profile page */
 .input-text{
