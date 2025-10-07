@@ -13,17 +13,18 @@ export default function Register() {
     e.preventDefault()
     setMessage(null)
     setLoading(true)
-    // Ensure the confirmation email redirects back to a page in our app
-    // Supabase expects the `emailRedirectTo` option inside `options` when
-    // using the client-side `signUp` call. We set it to a runtime value so
-    // it works both on localhost and deployed environments.
-    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/verify` : undefined
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/verify`
+      }
+    })
     setLoading(false)
     if (error) setMessage({ type: 'error', text: error.message })
     else {
-      setMessage({ type: 'success', text: 'Check your email for confirmation (if enabled).' })
-      setTimeout(() => router.push('/auth/login'), 1500)
+      setMessage({ type: 'success', text: 'Check your email for confirmation link.' })
+      setTimeout(() => router.push('/auth/login'), 2000)
     }
   }
 

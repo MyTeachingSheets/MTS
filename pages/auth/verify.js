@@ -1,55 +1,86 @@
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabaseClient'
+import { useRouter } from 'next/router'
 
-export default function VerifyPage() {
+export default function Verify() {
   const [status, setStatus] = useState('verifying')
+  const [message, setMessage] = useState('Verifying your email...')
   const router = useRouter()
 
   useEffect(() => {
-    // Supabase automatically parses sessions from the URL when the client
-    // initializes, but to be safe we attempt to explicitly exchange any
-    // PKCE/auth code in the URL for a session. This helps on some setups.
-    async function finalize() {
+    // Supabase sends back the verification token in the URL hash
+    // Format: #access_token=...&refresh_token=...&type=signup
+    const handleEmailVerification = async () => {
       try {
-        // Try to get a session — if Supabase detected it from the URL this
-        // will return the session. Otherwise nothing breaks.
-        const { data, error } = await supabase.auth.getSession()
-        if (error) {
-          console.error('Error getting session after email verify:', error)
+        const hash = window.location.hash
+        
+        if (!hash) {
           setStatus('error')
+          setMessage('No verification token found. Please check your email link.')
           return
         }
 
-        // If session exists, consider verification successful.
-        if (data?.session) {
-          setStatus('success')
-          // redirect to profile or homepage after a short delay
-          setTimeout(() => router.push('/profile'), 1200)
+        // Parse hash parameters
+        const params = new URLSearchParams(hash.substring(1))
+        const accessToken = params.get('access_token')
+        const refreshToken = params.get('refresh_token')
+        const type = params.get('type')
+
+        if (type === 'signup' && accessToken) {
+          // Set the session with the tokens from the email link
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+
+          if (error) {
+            setStatus('error')
+            setMessage(`Verification failed: ${error.message}`)
+          } else if (data.session) {
+            setStatus('success')
+            setMessage('Email verified successfully! Redirecting...')
+            // Redirect to home or profile after 2 seconds
+            setTimeout(() => router.push('/'), 2000)
+          }
         } else {
-          // No session yet — show a user-facing message and let them go to login
-          setStatus('no-session')
+          setStatus('error')
+          setMessage('Invalid verification link.')
         }
       } catch (err) {
-        console.error('Verification error', err)
         setStatus('error')
+        setMessage(`Error: ${err.message}`)
       }
     }
-    finalize()
-  }, [router])
+
+    handleEmailVerification()
+  }, [])
 
   return (
-    <div style={{padding: 24}}>
-      <h1>Email verification</h1>
-      {status === 'verifying' && <p>Verifying your email — please wait...</p>}
-      {status === 'success' && <p>Success! You are now verified. Redirecting…</p>}
-      {status === 'no-session' && (
-        <>
-          <p>We couldn't find an active session after following the verification link.</p>
-          <p>Please try logging in from the <a href="/auth/login">login page</a>.</p>
-        </>
-      )}
-      {status === 'error' && <p>There was an error verifying your email. Check the link or try again.</p>}
+    <div className="auth-root">
+      <div className="auth-card">
+        <h2>Email Verification</h2>
+        <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+          {status === 'verifying' && (
+            <div>
+              <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+              <p>{message}</p>
+            </div>
+          )}
+          {status === 'success' && (
+            <div>
+              <div style={{ fontSize: '3rem', color: '#22c55e', marginBottom: '1rem' }}>✓</div>
+              <p style={{ color: '#22c55e', fontWeight: 'bold' }}>{message}</p>
+            </div>
+          )}
+          {status === 'error' && (
+            <div>
+              <div style={{ fontSize: '3rem', color: '#ef4444', marginBottom: '1rem' }}>✗</div>
+              <p style={{ color: '#ef4444' }}>{message}</p>
+              <a href="/auth/login" className="btn" style={{ marginTop: '1rem', display: 'inline-block' }}>Go to Login</a>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
