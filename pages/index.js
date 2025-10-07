@@ -2,17 +2,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import AuthModal from '../components/AuthModal'
 
-export default function Home() {
+export default function Home({ heroBg }) {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authMode, setAuthMode] = useState('register')
-  const featuredResources = [
-    { id: 1, title: 'Math Worksheets Bundle', desc: 'Complete K-5 math practice sheets', icon: '🔢', rating: 4.9 },
-    { id: 2, title: 'Reading Comprehension Pack', desc: 'Engaging stories with questions', icon: '📚', rating: 4.8 },
-    { id: 3, title: 'Science Lab Activities', desc: 'Hands-on experiments for grades 3-6', icon: '🔬', rating: 4.9 },
-    { id: 4, title: 'Grammar Practice Sheets', desc: 'Parts of speech & sentence structure', icon: '✏️', rating: 4.7 },
-    { id: 5, title: 'Geography Maps & Quizzes', desc: 'World maps and country studies', icon: '🗺️', rating: 4.8 },
-    { id: 6, title: 'Art & Creativity Projects', desc: 'Step-by-step art lessons', icon: '🎨', rating: 4.9 },
-  ]
+  // featuredResources removed per user request
 
   const categories = [
     { name: 'Elementary', icon: '🎒' },
@@ -35,51 +28,137 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Hero Section */}
-        <section className="hero-section">
+        {/* Hero Section with background illustration */}
+        <section className="hero-section hero-with-bg" role="region" aria-label="Hero">
+          <div className="hero-bg" aria-hidden="true" style={heroBg ? {backgroundImage:`url('${heroBg}')`} : {}}></div>
           <div className="hero-content">
-            <h1>Ready-Made Teaching Resources</h1>
-            <p className="tagline">
-              Save hours of prep time with high-quality worksheets, activities, and lesson plans created by teachers, for teachers.
-            </p>
+            <h1>Generate worksheets fast</h1>
+            <p className="tagline">Custom worksheets, ready in seconds.</p>
             <div className="hero-actions">
-              <button onClick={() => { setAuthMode('register'); setShowAuthModal(true); }} className="btn">Get Started Free</button>
+              <Link href="/ai/generate" className="btn btn-generate" aria-label="Generate worksheet">
+                Generate Worksheet
+              </Link>
+
               <Link href="#featured" className="btn btn-secondary">Browse Resources</Link>
             </div>
           </div>
         </section>
 
-        <section className="content-section">
-          <h2 className="section-title">Explore by Grade Level</h2>
-          <div className="category-grid">
-            {categories.map(cat => (
-              <div key={cat.name} className="category-card">
-                <div className="category-icon">{cat.icon}</div>
-                <h3>{cat.name}</h3>
+        {/* Explore by Grade Level removed per request */}
+
+        {/* School-level resource sections */}
+        <section className="content-section" aria-label="Elementary resources">
+          <h2 className="section-title">Explore Elementary School Resources</h2>
+          <div className="resource-grid">
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 1</h3>
+                <p>Description for elementary worksheet resource.</p>
               </div>
-            ))}
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 2</h3>
+                <p>Description for elementary worksheet resource.</p>
+              </div>
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 3</h3>
+                <p>Description for elementary worksheet resource.</p>
+              </div>
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 4</h3>
+                <p>Description for elementary worksheet resource.</p>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Featured Resources */}
-        <section id="featured" className="content-section" style={{background:'white'}}>
-          <h2 className="section-title">Featured Resources</h2>
+        <section className="content-section" aria-label="Middle school resources">
+          <h2 className="section-title">Explore Middle School Resources</h2>
           <div className="resource-grid">
-            {featuredResources.map(resource => (
-              <div key={resource.id} className="resource-card">
-                <div className="resource-thumb">{resource.icon}</div>
-                <div className="resource-body">
-                  <h3>{resource.title}</h3>
-                  <p>{resource.desc}</p>
-                  <div className="resource-meta">
-                    <span className="resource-rating">⭐ {resource.rating}</span>
-                    <span style={{fontWeight:600,color:'var(--tpt-teal)'}}>FREE</span>
-                  </div>
-                </div>
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 1</h3>
+                <p>Description for middle school worksheet resource.</p>
               </div>
-            ))}
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 2</h3>
+                <p>Description for middle school worksheet resource.</p>
+              </div>
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 3</h3>
+                <p>Description for middle school worksheet resource.</p>
+              </div>
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 4</h3>
+                <p>Description for middle school worksheet resource.</p>
+              </div>
+            </div>
           </div>
         </section>
+
+        <section className="content-section" aria-label="High school resources">
+          <h2 className="section-title">Explore High School Resources</h2>
+          <div className="resource-grid">
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 1</h3>
+                <p>Description for high school worksheet resource.</p>
+              </div>
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 2</h3>
+                <p>Description for high school worksheet resource.</p>
+              </div>
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 3</h3>
+                <p>Description for high school worksheet resource.</p>
+              </div>
+            </div>
+
+            <div className="resource-card">
+              <div className="resource-thumb"></div>
+              <div className="resource-body">
+                <h3>Worksheet Placeholder 4</h3>
+                <p>Description for high school worksheet resource.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Featured Resources removed per request */}
 
         {/* CTA Section */}
         <section className="content-section" style={{textAlign:'center',paddingTop:80,paddingBottom:80}}>
@@ -113,4 +192,28 @@ export default function Home() {
       />
     </div>
   )
+}
+
+export async function getStaticProps() {
+  // Detect if a custom hero background image exists in the public folder.
+  // Look for common extensions: jpg, jpeg, png, webp
+  const fs = require('fs')
+  const path = require('path')
+  const publicDir = path.join(process.cwd(), 'public')
+  const candidates = ['hero-bg-custom.jpg', 'hero-bg-custom.jpeg', 'hero-bg-custom.png', 'hero-bg-custom.webp']
+  let heroBg = null
+
+  for (const c of candidates) {
+    try {
+      const p = path.join(publicDir, c)
+      if (fs.existsSync(p)) {
+        heroBg = `/${c}`
+        break
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  return { props: { heroBg } }
 }

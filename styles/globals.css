@@ -85,15 +85,16 @@ body{
   align-items:center;
   justify-content:space-between;
   height:88px; /* increased height */
+  gap:24px;
 }
 
 /* Header search */
-.header-search{display:flex;align-items:center;gap:6px;margin-left:24px;flex:1;max-width:520px}
-.search-input{flex:1;padding:10px 16px;border-radius:999px;border:1px solid var(--border-light);background:var(--bg-light);font-size:0.95rem}
-.search-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:999px;border:none;background:var(--primary-navy);color:white;cursor:pointer;font-size:0.95rem;transition:background 0.2s}
-.search-btn svg{display:block;color:white}
-.search-btn:hover{background:var(--primary-navy-dark)}
-.search-btn:focus{outline:none;box-shadow:0 0 0 4px rgba(11,43,74,0.12)}
+.header-search{display:flex;align-items:center;margin-left:0;flex:1 1 620px;min-width:260px;max-width:900px;position:relative}
+.search-input{flex:1;padding:12px 16px;padding-right:56px;border-radius:999px;border:1px solid var(--border-light);background:var(--bg-white) !important;font-size:0.95rem}
+.search-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:40px;height:40px;padding:0;border-radius:999px;border:none;background:transparent;color:var(--primary-navy);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.12s,box-shadow 0.12s}
+.search-btn svg{display:block;color:currentColor;width:16px;height:16px}
+.search-btn:hover{transform:translateY(-50%) scale(1.03);box-shadow:none}
+.search-btn:focus{outline:none;box-shadow:0 0 0 4px rgba(11,43,74,0.06)}
 .search-input:focus{outline:none;box-shadow:0 0 0 3px rgba(58,166,162,0.06);border-color:var(--muted-teal);background:white}
 
 @media(max-width:900px){
@@ -107,8 +108,9 @@ body{
   transition:opacity 0.2s;
   display:flex;
   align-items:center;
+  flex: 0 0 auto; /* keep logo at natural size */
 }
-.nav-brand:hover{opacity:0.8;}
+.nav-brand:hover{opacity:0.9;}
 
 /* Site logo - optimized for 80×40px dimensions (2:1 ratio) */
 .site-logo{
@@ -118,17 +120,17 @@ body{
   transition:opacity 0.2s, transform 0.15s;
 }
 
-@media(max-width:768px){
-  .site-logo{
-    height:40px;
-    width:80px;
-  }
+@media(max-width:900px){
+  .site-logo{height:40px;width:80px}
 }
 .nav-actions{
   display:flex;
   align-items:center;
-  gap:16px; /* increased gap */
+  gap:14px; /* consistent gap */
+  flex: 0 0 auto; /* keep actions tight */
 }
+.nav-actions .nav-btn{min-width:92px;text-align:center}
+.nav-actions .nav-btn.primary{min-width:108px}
 .nav-btn{
   background:transparent;
   border:none;
@@ -281,9 +283,41 @@ body{
 
 /* Hero Section */
 .hero-section{
-  background:linear-gradient(180deg, #f7fbfc 0%, #ffffff 100%);
   padding:64px 24px;
   text-align:center;
+}
+.hero-with-bg{
+  position:relative;
+  padding:84px 24px;
+  display:flex;
+  align-items:center;
+  min-height:420px;
+  overflow:hidden;
+}
+.hero-bg{
+  position:absolute;
+  inset:0;
+  /* allow an inline style or CSS variable to override the background image */
+  background-image: var(--hero-bg, url('/hero-bg.svg'));
+  background-size:cover;
+  background-position:center center;
+  opacity:1;
+  filter:contrast(1.02) saturate(0.95);
+  z-index:0;
+}
+.hero-with-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.65));z-index:1}
+.hero-with-bg .hero-content{position:relative;z-index:2;max-width:980px;margin:0 auto;text-align:left;padding-left:32px}
+.hero-with-bg .tagline{color:var(--text-secondary);font-size:1.125rem;margin-bottom:16px}
+.hero-with-bg h1{font-size:2.2rem;color:var(--text-primary);margin-bottom:8px}
+.hero-with-bg .hero-actions{display:flex;gap:14px;align-items:center;justify-content:flex-start}
+.hero-with-bg .btn-generate{padding:12px 20px;font-size:1rem}
+.hero-with-bg .btn-secondary{padding:10px 18px}
+
+@media(max-width:900px){
+  .hero-with-bg{padding:48px 16px;min-height:360px}
+  .hero-with-bg .hero-content{text-align:center;padding-left:0}
+  .hero-with-bg h1{font-size:1.6rem}
+  .hero-with-bg .hero-actions{flex-direction:column;gap:12px;align-items:center;justify-content:center}
 }
 .hero-content{
   max-width:900px;
@@ -319,7 +353,7 @@ body{
   font-weight:700;
   color:var(--text-primary);
   margin:0 0 32px 0;
-  text-align:center;
+  text-align:left;
 }
 
 /* Category pills bar under header/hero */
