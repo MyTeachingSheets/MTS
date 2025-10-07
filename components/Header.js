@@ -43,20 +43,19 @@ export default function Header() {
     <>
       <header className="top-nav" role="banner">
         <div className="nav-inner">
-          <Link className="nav-brand" href="/">MyTeachingSheets</Link>
-          <form action="/" method="get" className="header-search" role="search" onSubmit={(e)=>{ /* allow native submit to /?q=... */ }}>
+          <Link className="nav-brand" href="/">
+            <img src="/logo.svg" alt="MyTeachingSheets" className="site-logo" />
+          </Link>
+          <form action="/search" method="get" className="header-search" role="search" onSubmit={(e)=>{ /* allow native submit to /search?q=... */ }}>
             <input name="q" className="search-input" placeholder="Search worksheets, topics, or grade" aria-label="Search" />
             <button type="submit" className="search-btn" aria-label="Search">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
                 <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></circle>
               </svg>
             </button>
           </form>
           <nav className="nav-actions" aria-label="Main navigation">
-            <Link href="/ai/generate" className="nav-btn btn-generate">
-              <span style={{fontWeight:700}}>Generate</span>
-            </Link>
             {user ? (
               <div ref={menuRef} style={{position:'relative'}}>
                 <button
@@ -75,6 +74,7 @@ export default function Header() {
                 {showProfileMenu && (
                   <div className="profile-dropdown" role="menu">
                     <Link href="/profile" className="profile-item" role="menuitem" onClick={() => setShowProfileMenu(false)}>Profile</Link>
+                    <Link href="/ai/generate" className="profile-item" role="menuitem" onClick={() => setShowProfileMenu(false)}>Generate Worksheet</Link>
                     <button className="profile-item" role="menuitem" onClick={async () => { await supabase.auth.signOut(); window.location.reload() }}>
                       Logout
                     </button>
