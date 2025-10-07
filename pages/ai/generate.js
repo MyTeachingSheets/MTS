@@ -124,7 +124,7 @@ export default function AIGeneratePage(){
 
           <div style={{display:'flex',gap:10,marginTop:20}}>
             <button className="btn ai-generate-btn" onClick={handleGenerate} disabled={generating}>
-              {generating ? 'Generating...' : 'Generate Worksheet'}
+              {generating ? 'Generating' : 'Generate'}
             </button>
           </div>
           
@@ -144,7 +144,7 @@ export default function AIGeneratePage(){
                 <div style={{fontSize:'3rem',marginBottom:12}}>📚</div>
                 <h3 style={{margin:'0 0 8px 0',color:'var(--text-primary)'}}>No Worksheets Yet</h3>
                 <p style={{margin:0,color:'var(--text-secondary)',lineHeight:1.6}}>
-                  Fill in the settings on the left and click <strong>Generate Worksheet</strong> to create your first AI-powered lesson.
+                  Fill in the settings on the left and click <strong>Generate</strong> to create your first AI-powered lesson.
                 </p>
               </div>
             ) : (

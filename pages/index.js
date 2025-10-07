@@ -35,8 +35,8 @@ export default function Home({ heroBg }) {
             <h1>Generate worksheets fast</h1>
             <p className="tagline">Custom worksheets, ready in seconds.</p>
             <div className="hero-actions">
-              <Link href="/ai/generate" className="btn btn-generate" aria-label="Generate worksheet">
-                Generate Worksheet
+              <Link href="/ai/generate" className="btn btn-generate" aria-label="Generate">
+                Generate
               </Link>
 
               <Link href="#featured" className="btn btn-secondary">Browse Resources</Link>
