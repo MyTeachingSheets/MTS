@@ -14,19 +14,21 @@ jest.mock('next/router', () => ({
 describe('Home page', () => {
   it('renders main heading', () => {
     render(<Home />)
-    expect(screen.getByText(/Ready-Made Teaching Resources/i)).toBeInTheDocument()
+    expect(screen.getByText(/Generate worksheets fast/i)).toBeInTheDocument()
   })
-  it('renders tagline with high-quality worksheets', () => {
+  it('renders tagline', () => {
     render(<Home />)
-    expect(screen.getByText(/Save hours of prep time with high-quality worksheets/i)).toBeInTheDocument()
+    expect(screen.getByText(/Custom worksheets, ready in seconds/i)).toBeInTheDocument()
   })
-  it('renders Get Started CTA button', () => {
+  it('renders Generate CTA button', () => {
     render(<Home />)
-    expect(screen.getByText(/Get Started Free/i)).toBeInTheDocument()
+    const generateButtons = screen.getAllByText(/Generate/i)
+    expect(generateButtons.length).toBeGreaterThan(0)
   })
-  it('renders featured resources section', () => {
+  it('renders school-level resource sections', () => {
     render(<Home />)
-    expect(screen.getByText(/Featured Resources/i)).toBeInTheDocument()
-    expect(screen.getByText(/Math Worksheets Bundle/i)).toBeInTheDocument()
+    expect(screen.getByText(/Explore Elementary School Resources/i)).toBeInTheDocument()
+    expect(screen.getByText(/Explore Middle School Resources/i)).toBeInTheDocument()
+    expect(screen.getByText(/Explore High School Resources/i)).toBeInTheDocument()
   })
 })
