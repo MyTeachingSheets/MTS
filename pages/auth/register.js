@@ -9,10 +9,30 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
+  async function checkEmailExists(emailToCheck) {
+    if (!emailToCheck) return false
+    try {
+      const res = await fetch('/api/check-email?email=' + encodeURIComponent(emailToCheck))
+      if (!res.ok) return false
+      const json = await res.json()
+      return !!json.exists
+    } catch (e) {
+      return false
+    }
+  }
+
   async function submit(e) {
     e.preventDefault()
     setMessage(null)
     setLoading(true)
+    // Double-check email isn't already registered
+    const exists = await checkEmailExists(email)
+    if (exists) {
+      setLoading(false)
+      setMessage({ type: 'error', text: 'This email is already registered. Please use a different email or log in.' })
+      return
+    }
+
     const { data, error } = await supabase.auth.signUp({ email, password })
     setLoading(false)
     if (error) setMessage({ type: 'error', text: error.message })
@@ -30,7 +50,12 @@ export default function Register() {
         <form onSubmit={submit}>
           <div className="form-row">
             <label htmlFor="email">Email</label>
-            <input id="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <input id="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={async (ev) => {
+              const val = ev.target.value
+              if (!val) return
+              const exists = await checkEmailExists(val)
+              if (exists) setMessage({ type: 'error', text: 'This email is already registered. Please use a different email or log in.' })
+            }} placeholder="you@example.com" />
           </div>
           <div className="form-row">
             <label htmlFor="password">Password</label>
