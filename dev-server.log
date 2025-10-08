@@ -1,0 +1,31 @@
+
+> simple-next-website@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+ ⚠ Port 3001 is in use, trying 3002 instead.
+   ▲ Next.js 14.0.0
+   - Local:        http://localhost:3002
+   - Environments: .env.local
+
+ ✓ Ready in 1363ms
+ ✓ Compiled /api/check-email in 259ms (134 modules)
+ ✓ Compiled in 62ms (134 modules)
+ ✓ Compiled /_error in 231ms (358 modules)
+ ✓ Compiled in 72ms (135 modules)
+ ✓ Compiled in 70ms (135 modules)
+ ✓ Compiled in 161ms (120 modules)
+ ✓ Compiled /api/check-email in 41ms (134 modules)
+ ✓ Compiled in 105ms (134 modules)
+ ✓ Compiled in 96ms (134 modules)
+[check-email] calling: https://heyliwglmbedjnekonlo.supabase.co/auth/v1/admin/users?email=dinumadelivery01%40gmail.com
+[check-email] users.length: not-array
+ ✓ Compiled in 38ms (134 modules)
+[check-email] calling: https://heyliwglmbedjnekonlo.supabase.co/auth/v1/admin/users?email=dinumadelivery01%40gmail.com
+[check-email] users.length: 11
+ ✓ Compiled in 116ms (120 modules)
+ ✓ Compiled in 281ms (342 modules)
+ ✓ Compiled in 432ms (342 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Restoring pack from /Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/.next/cache/webpack/server-development.pack.gz failed: TypeError: Cannot read properties of undefined (reading 'hasStartTime')
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/.next/cache/webpack/client-development/1.pack.gz_' -> '/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/.next/cache/webpack/client-development/1.pack.gz'
+[?25h
