@@ -13,18 +13,12 @@ export default function Register() {
     e.preventDefault()
     setMessage(null)
     setLoading(true)
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/verify`
-      }
-    })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     setLoading(false)
     if (error) setMessage({ type: 'error', text: error.message })
     else {
-      setMessage({ type: 'success', text: 'Check your email for confirmation link.' })
-      setTimeout(() => router.push('/auth/login'), 2000)
+      setMessage({ type: 'success', text: 'Check your email for confirmation (if enabled).' })
+      setTimeout(() => router.push('/auth/login'), 1500)
     }
   }
 
