@@ -20,9 +20,12 @@ export default function Login() {
     setLoading(false)
     if (error) {
       // Check if error is due to unconfirmed email
-      if (error.message.toLowerCase().includes('email not confirmed') || 
-          error.message.toLowerCase().includes('email confirmation')) {
-        setMessage({ type: 'error', text: 'Please verify your email before logging in.' })
+      const errorMsg = error.message.toLowerCase()
+      if (errorMsg.includes('email not confirmed') || 
+          errorMsg.includes('not confirmed') ||
+          errorMsg.includes('email confirmation') ||
+          errorMsg.includes('confirm your email')) {
+        setMessage({ type: 'error', text: error.message })
         setShowResend(true)
       } else {
         setMessage({ type: 'error', text: error.message })
