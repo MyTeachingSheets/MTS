@@ -15,13 +15,30 @@ export default function Register() {
     e.preventDefault()
     setMessage(null)
     setLoading(true)
+    
     const { data, error } = await supabase.auth.signUp({ email, password })
     setLoading(false)
-    if (error) setMessage({ type: 'error', text: error.message })
-    else {
-      setMessage({ type: 'success', text: 'Check your email for confirmation (if enabled).' })
-      setRegistered(true)
-      // Don't auto-redirect, let user resend if needed
+    
+    if (error) {
+      // Check if error is due to email already being registered
+      if (error.message.toLowerCase().includes('already registered') || 
+          error.message.toLowerCase().includes('user already exists') ||
+          error.message.toLowerCase().includes('already been registered')) {
+        setMessage({ type: 'error', text: 'This email is already registered. Please use a different email or try logging in.' })
+      } else {
+        setMessage({ type: 'error', text: error.message })
+      }
+    } else {
+      // Note: Supabase may return success even if user exists (depends on settings)
+      // Check if the user was actually created
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        // User already exists but Supabase returned success (email confirmation disabled scenario)
+        setMessage({ type: 'error', text: 'This email is already registered. Please use a different email or try logging in.' })
+      } else {
+        setMessage({ type: 'success', text: 'Check your email for confirmation (if enabled).' })
+        setRegistered(true)
+        // Don't auto-redirect, let user resend if needed
+      }
     }
   }
 
