@@ -298,98 +298,55 @@ export default function AIGeneratePage(){
   }
 
   return (
-    <div className="content-section">
-      <div style={{maxWidth:1280,margin:'0 auto',marginBottom:24}}>
-        {/* Header intentionally removed per request */}
-      </div>
-
-      <div className="ai-generate-root" style={{maxWidth:1280,margin:'0 auto',display:'flex',gap:24}}>
+    <>
+      <div className="ai-generate-root">
         <aside className="ai-left-panel">
-          <div style={{marginBottom:20}}>
-            <h3 style={{margin:'0 0 8px 0',fontSize:'1.15rem',color:'var(--primary-navy)'}}>⚙️ Configuration</h3>
-            <p style={{margin:0,fontSize:'0.85rem',color:'var(--text-secondary)',lineHeight:1.5}}>
-              Select your worksheet parameters
-            </p>
-          </div>
-
           <div className="ai-form-group">
             <label>Subject *</label>
-            <select 
-              className="input-text" 
-              value={subject} 
-              onChange={e => {
-                setSubject(e.target.value)
-                setDomain('') // Reset domain when subject changes
-              }}
-            >
-              <option value="">Choose a subject...</option>
+            <select className="input-text" value={subject} onChange={e=>{ setSubject(e.target.value); setDomain('') }}>
+              <option value="">Select</option>
               {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
           <div className="ai-form-group">
-            <label>Grade Level *</label>
+            <label>Grade *</label>
             <select className="input-text" value={grade} onChange={e=>setGrade(e.target.value)}>
-              <option value="">Choose grade level...</option>
+              <option value="">Select</option>
               {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
 
           <div className="ai-form-group">
             <label>Domain</label>
-            <select 
-              className="input-text" 
-              value={domain} 
-              onChange={e=>setDomain(e.target.value)}
-              disabled={!subject}
-            >
-              <option value="">Choose a domain...</option>
+            <select className="input-text" value={domain} onChange={e=>setDomain(e.target.value)} disabled={!subject}>
+              <option value="">Select</option>
               {getCurrentDomains().map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            {!subject && (
-              <small style={{fontSize:'0.75rem',color:'var(--text-secondary)',marginTop:4,display:'block'}}>
-                Select a subject first
-              </small>
-            )}
           </div>
 
           <div className="ai-form-group">
             <label>Standard</label>
             <select className="input-text" value={standard} onChange={e=>setStandard(e.target.value)}>
-              <option value="">Choose a standard...</option>
+              <option value="">Select</option>
               {STANDARDS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
           <div className="ai-form-group">
-            <label>Worksheet Type *</label>
-            <select 
-              className="input-text" 
-              value={worksheetType} 
-              onChange={e=>handleWorksheetTypeChange(e.target.value)}
-              disabled={loadingTypes}
-            >
-              <option value="">Choose type...</option>
+            <label>Type *</label>
+            <select className="input-text" value={worksheetType} onChange={e=>handleWorksheetTypeChange(e.target.value)} disabled={loadingTypes}>
+              <option value="">Select</option>
               {worksheetTypes.map(w => (
-                <option key={w.id} value={w.id}>
-                  {w.name} {w.is_custom ? '(Custom)' : ''}
-                </option>
+                <option key={w.id} value={w.id}>{w.name}{w.is_custom ? ' (Custom)' : ''}</option>
               ))}
-              <option value="CREATE_NEW" style={{fontWeight:'bold',color:'var(--primary-navy)'}}>
-                + Create Custom Type...
-              </option>
+              <option value="CREATE_NEW" style={{fontWeight:'bold',color:'var(--primary-navy)'}}>Create new</option>
             </select>
           </div>
 
           <div className="ai-form-group">
-            <label>Custom Instructions (Optional)</label>
-            <textarea 
-              value={prompt} 
-              onChange={e=>setPrompt(e.target.value)} 
-              placeholder="Add specific requirements, topics, difficulty level, or special instructions..." 
-              className="ai-textarea"
-              rows="4"
-            />
+            <label>Notes</label>
+            <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Optional notes" className="ai-textarea" rows="3" />
           </div>
 
           <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:24}}>
@@ -404,13 +361,7 @@ export default function AIGeneratePage(){
                   Generating...
                 </>
               ) : (
-                <>
-                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-                  </svg>
-                  Generate Worksheet
-                </>
+                'Generate Worksheet'
               )}
             </button>
             
@@ -628,6 +579,127 @@ export default function AIGeneratePage(){
           margin-bottom: 24px;
         }
 
+        .ai-generate-root {
+          display: flex;
+          gap: 0;
+          max-width: 100%;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          position: relative;
+        }
+
+        .ai-left-panel {
+          /* start below header; set --header-height in your global CSS if needed */
+          --_header_h: var(--header-height, 80px);
+          position: fixed;
+          top: var(--_header_h);
+          left: 0;
+          width: 320px;
+          height: calc(100vh - var(--_header_h));
+          overflow-y: auto;
+          padding: 24px;
+          background: white;
+          border-right: 1px solid var(--border-light);
+          box-shadow: none;
+          border-radius: 0;
+          z-index: 100;
+        }
+
+        .ai-right-panel {
+          margin-left: 320px;
+          margin-right: 0;
+          flex: 1 1 auto;
+          min-width: 0;
+          padding: 0;
+          width: calc(100% - 320px);
+          /* fill remaining vertical space beside sidebar */
+          --_header_h: var(--header-height, 80px);
+          height: calc(100vh - var(--_header_h));
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          border-radius: 0;
+        }
+
+        .ai-results-container {
+          width: 100%;
+          /* allow the content area to scroll while keeping header/actions sticky */
+          flex: 1 1 auto;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          padding: 24px;
+          box-sizing: border-box;
+        }
+
+        .ai-form-group {
+          margin-bottom: 20px;
+        }
+
+        .ai-form-group label {
+          display: block;
+          margin-bottom: 6px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .ai-textarea {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid var(--border-light);
+          border-radius: 8px;
+          font-size: 0.9rem;
+          font-family: inherit;
+          resize: vertical;
+          transition: all 0.2s;
+        }
+
+        .ai-textarea:focus {
+          outline: none;
+          border-color: var(--primary-navy);
+          box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.1);
+        }
+
+        .ai-generate-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: 100%;
+        }
+
+        .ai-empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+          text-align: center;
+        }
+
+        @media (max-width: 968px) {
+          .ai-generate-root {
+            flex-direction: column;
+          }
+
+          .ai-left-panel {
+            position: relative;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+            border-right: none;
+            border-bottom: 1px solid var(--border-light);
+            background: white;
+          }
+
+          .ai-right-panel {
+            margin-left: 0;
+            padding: 20px;
+          }
+        }
+
         .spinner {
           display: inline-block;
           width: 14px;
@@ -651,7 +723,7 @@ export default function AIGeneratePage(){
         .worksheet-card {
           background: white;
           border: 1px solid var(--border-light);
-          border-radius: 12px;
+          border-radius: 0;
           overflow: hidden;
           transition: all 0.2s;
         }
@@ -850,6 +922,6 @@ export default function AIGeneratePage(){
           }
         }
       `}</style>
-    </div>
+    </>
   )
 }
