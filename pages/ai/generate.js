@@ -300,16 +300,7 @@ export default function AIGeneratePage(){
   return (
     <div className="content-section">
       <div style={{maxWidth:1280,margin:'0 auto',marginBottom:24}}>
-        <div className="page-header">
-          <div>
-            <h1 style={{margin:'0 0 8px 0',fontSize:'2rem',color:'var(--primary-navy)'}}>
-              📝 Worksheet Generator
-            </h1>
-            <p style={{margin:0,fontSize:'1rem',color:'var(--text-secondary)',lineHeight:1.6}}>
-              Create custom worksheets with AI. Configure your settings, generate, upload a thumbnail, and list on our marketplace.
-            </p>
-          </div>
-        </div>
+        {/* Header intentionally removed per request */}
       </div>
 
       <div className="ai-generate-root" style={{maxWidth:1280,margin:'0 auto',display:'flex',gap:24}}>
