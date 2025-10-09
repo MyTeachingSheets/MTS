@@ -48,10 +48,17 @@ export default function ProfilePage() {
   }, [])
 
   async function handleLogout() {
-    await supabase.auth.signOut()
-    setUser(null)
-    // Redirect to home page where AuthModal will be available
-    window.location.href = '/'
+    try {
+      // Sign out and redirect immediately to home with auth query to open modal
+      await supabase.auth.signOut()
+      // Use router to navigate so Home can open the modal
+      window.location.href = '/?auth=login'
+    } catch (err) {
+      console.error('Logout failed', err)
+      // fallback: clear user locally and redirect
+      setUser(null)
+      window.location.href = '/'
+    }
   }
 
   async function handleAvatarUpload(event) {
