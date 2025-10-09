@@ -2,30 +2,121 @@
 > simple-next-website@0.1.0 dev
 > next dev
 
- ⚠ Port 3000 is in use, trying 3001 instead.
- ⚠ Port 3001 is in use, trying 3002 instead.
    ▲ Next.js 14.0.0
-   - Local:        http://localhost:3002
+   - Local:        http://localhost:3000
    - Environments: .env.local
 
- ✓ Ready in 1363ms
- ✓ Compiled /api/check-email in 259ms (134 modules)
- ✓ Compiled in 62ms (134 modules)
- ✓ Compiled /_error in 231ms (358 modules)
- ✓ Compiled in 72ms (135 modules)
- ✓ Compiled in 70ms (135 modules)
- ✓ Compiled in 161ms (120 modules)
- ✓ Compiled /api/check-email in 41ms (134 modules)
- ✓ Compiled in 105ms (134 modules)
- ✓ Compiled in 96ms (134 modules)
-[check-email] calling: https://heyliwglmbedjnekonlo.supabase.co/auth/v1/admin/users?email=dinumadelivery01%40gmail.com
-[check-email] users.length: not-array
- ✓ Compiled in 38ms (134 modules)
-[check-email] calling: https://heyliwglmbedjnekonlo.supabase.co/auth/v1/admin/users?email=dinumadelivery01%40gmail.com
-[check-email] users.length: 11
- ✓ Compiled in 116ms (120 modules)
- ✓ Compiled in 281ms (342 modules)
- ✓ Compiled in 432ms (342 modules)
-<w> [webpack.cache.PackFileCacheStrategy] Restoring pack from /Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/.next/cache/webpack/server-development.pack.gz failed: TypeError: Cannot read properties of undefined (reading 'hasStartTime')
-<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/.next/cache/webpack/client-development/1.pack.gz_' -> '/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/.next/cache/webpack/client-development/1.pack.gz'
-[?25h
+ ✓ Ready in 1534ms
+ ✓ Compiled /api/check-email in 229ms (134 modules)
+ ✓ Compiled /api/store-user in 68ms (136 modules)
+Unexpected error: Error: @supabase/auth-js: Expected parameter to be UUID but is not
+    at validateUUID (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/@supabase/auth-js/dist/main/lib/helpers.js:337:15)
+    at GoTrueAdminApi.getUserById (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/@supabase/auth-js/dist/main/GoTrueAdminApi.js:178:36)
+    at handler (webpack-internal:///(api)/./pages/api/store-user.js:39:85)
+    at /Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/next-server/pages-api.runtime.dev.js:21:3039
+    at /Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/server/lib/trace/tracer.js:121:36
+    at NoopContextManager.with (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7057)
+    at ContextAPI.with (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:516)
+    at NoopTracer.startActiveSpan (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18086)
+    at ProxyTracer.startActiveSpan (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18847)
+    at /Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/server/lib/trace/tracer.js:110:107
+    at NoopContextManager.with (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7057)
+    at ContextAPI.with (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:516)
+    at NextTracerImpl.trace (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/server/lib/trace/tracer.js:110:32)
+    at K (/Users/sahithsambodhi/Desktop/TPT/0. APP SCRIPT/next.js/node_modules/next/dist/compiled/next-server/pages-api.runtime.dev.js:21:2970)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+ ✓ Compiled in 43ms (136 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1071ms (360 modules)
+ ✓ Compiled /api/check-email in 24ms (136 modules)
+ ✓ Compiled in 201ms (360 modules)
+ ✓ Compiled in 277ms (346 modules)
+ ✓ Compiled /api/store-user in 61ms (136 modules)
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+ ✓ Compiled /profile in 238ms (364 modules)
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+ ✓ Compiled in 371ms (350 modules)
+ ✓ Compiled in 135ms (350 modules)
+ ✓ Compiled /api/store-user in 36ms (138 modules)
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+ ✓ Compiled in 242ms (350 modules)
+ ✓ Compiled in 188ms (350 modules)
+ ✓ Compiled in 131ms (350 modules)
+ ✓ Compiled /api/check-email in 102ms (138 modules)
+ ✓ Compiled /api/store-user in 42ms (140 modules)
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+ ✓ Compiled in 320ms (350 modules)
+ ✓ Compiled /api/store-user in 40ms (138 modules)
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+ ✓ Compiled in 332ms (350 modules)
+ ✓ Compiled in 115ms (350 modules)
+ ✓ Compiled /api/store-user in 54ms (138 modules)
+Error upserting user: {
+  code: 'PGRST205',
+  details: null,
+  hint: null,
+  message: "Could not find the table 'public.users' in the schema cache"
+}
+ ✓ Compiled /api/check-email in 70ms (140 modules)
+ ✓ Compiled in 729ms (350 modules)
