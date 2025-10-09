@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabaseClient'
 
 export default function ProfilePage() {
@@ -151,6 +152,8 @@ export default function ProfilePage() {
     </div>
   )
 
+  const router = useRouter()
+
   if (!user)
     return (
       <div className="content-section" style={{minHeight:'60vh'}}>
@@ -160,8 +163,8 @@ export default function ProfilePage() {
             Please log in or create an account to view your profile.
           </p>
           <div style={{display:'flex',gap:12,justifyContent:'center'}}>
-            <a href="/?auth=login" className="btn">Log In</a>
-            <a href="/?auth=register" className="btn btn-secondary">Sign Up</a>
+            <button onClick={() => router.push('/?auth=login')} className="btn">Log In</button>
+            <button onClick={() => router.push('/?auth=register')} className="btn btn-secondary">Sign Up</button>
           </div>
         </div>
       </div>

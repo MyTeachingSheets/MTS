@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
 import AuthModal from '../components/AuthModal'
 
 export default function Home({ heroBg }) {
@@ -8,17 +8,21 @@ export default function Home({ heroBg }) {
   const [authMode, setAuthMode] = useState('register')
   const router = useRouter()
 
+  // Open modal automatically when ?auth=login or ?auth=register is present
   useEffect(() => {
-    if (!router.isReady) return
-    const { auth } = router.query
+    const { auth } = router.query || {}
     if (auth === 'login' || auth === 'register') {
       setAuthMode(auth)
       setShowAuthModal(true)
-      // remove the query param to keep URL clean
-      const { auth: _a, ...rest } = router.query
-      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true })
+
+      // remove the query param without reloading the page
+      const { pathname, query } = router
+      const newQuery = { ...query }
+      delete newQuery.auth
+      router.replace({ pathname, query: newQuery }, undefined, { shallow: true })
     }
-  }, [router])
+    // only run when router.query changes
+  }, [router.query])
   // featuredResources removed per user request
 
   const categories = [
