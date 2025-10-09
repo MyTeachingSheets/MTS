@@ -30,6 +30,8 @@
 .top-nav .nav-inner, header.top-nav .nav-inner{
   height:88px !important;
   padding:0 28px !important;
+  width:100%;
+  max-width:100%;
 }
 .top-nav .nav-brand, header.top-nav .nav-brand{
   color: var(--primary-navy) !important;
@@ -86,7 +88,10 @@ body{
   justify-content:space-between;
   height:88px; /* increased height */
   gap:24px;
+  width:100%;
 }
+
+.nav-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px}
 
 /* Header search */
 .header-search{display:flex;align-items:center;margin-left:0;flex:1 1 620px;min-width:260px;max-width:900px;position:relative}
