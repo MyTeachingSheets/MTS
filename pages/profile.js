@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
@@ -49,13 +50,18 @@ export default function ProfilePage() {
 
   async function handleLogout() {
     try {
-      // Sign out and redirect immediately to home with auth query to open modal
-      await supabase.auth.signOut()
-      // Use router to navigate so Home can open the modal
-      window.location.href = '/?auth=login'
+      // Mark logging out so we can hide profile UI immediately
+      setLoggingOut(true)
+
+      // Navigate right away so the homepage can open AuthModal
+      // Use replace to avoid creating history entry
+      window.location.replace('/?auth=login')
+
+      // Perform signOut in background; we don't await it so UI doesn't flash
+      supabase.auth.signOut().catch((err) => console.error('Background signOut failed', err))
     } catch (err) {
       console.error('Logout failed', err)
-      // fallback: clear user locally and redirect
+      setLoggingOut(false)
       setUser(null)
       window.location.href = '/'
     }
@@ -161,7 +167,15 @@ export default function ProfilePage() {
 
   const router = useRouter()
 
-  if (!user)
+  if (!user) {
+    // If we are actively logging out, render a minimal placeholder to avoid
+    // flashing the 'No user signed in' panel while redirecting to home.
+    if (loggingOut) {
+      return (
+        <div className="content-section" style={{minHeight:'60vh'}} />
+      )
+    }
+
     return (
       <div className="content-section" style={{minHeight:'60vh'}}>
         <div style={{maxWidth:600,margin:'0 auto',textAlign:'center',padding:'40px 20px'}}>
@@ -176,6 +190,7 @@ export default function ProfilePage() {
         </div>
       </div>
     )
+  }
 
   return (
     <div className="content-section" style={{minHeight:'60vh'}}>
