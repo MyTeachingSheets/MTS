@@ -56,6 +56,22 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'register' })
       setLoading(false)
       if (error) setMessage({ type: 'error', text: error.message })
       else {
+        // Store user data after successful login
+        if (data?.user) {
+          try {
+            await fetch('/api/store-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: data.user.id,
+                email: data.user.email,
+                metadata: data.user.user_metadata
+              })
+            })
+          } catch (err) {
+            console.error('Failed to store user:', err)
+          }
+        }
         setMessage({ type: 'success', text: 'Logged in!' })
         setTimeout(() => {
           onClose()
@@ -63,6 +79,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'register' })
         }, 800)
       }
     } else {
+      // Check for duplicate email before signup
+      try {
+        const checkResponse = await fetch(`/api/check-email?email=${encodeURIComponent(email)}`)
+        const checkData = await checkResponse.json()
+
+        if (checkData.exists) {
+          setLoading(false)
+          setMessage({ type: 'error', text: 'This email is already registered. Please login instead.' })
+          return
+        }
+      } catch (err) {
+        console.error('Email check failed:', err)
+      }
+
       const { data, error } = await supabase.auth.signUp({ email, password })
       setLoading(false)
       if (error) setMessage({ type: 'error', text: error.message })

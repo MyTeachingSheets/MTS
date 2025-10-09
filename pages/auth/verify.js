@@ -37,6 +37,22 @@ export default function Verify() {
             setStatus('error')
             setMessage(`Verification failed: ${error.message}`)
           } else if (data.session) {
+            // Store user data after successful verification
+            if (data.user) {
+              try {
+                await fetch('/api/store-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: data.user.id,
+                    email: data.user.email,
+                    metadata: data.user.user_metadata
+                  })
+                })
+              } catch (err) {
+                console.error('Failed to store user:', err)
+              }
+            }
             setStatus('success')
             setMessage('Email verified successfully! Redirecting...')
             // Redirect to home or profile after 2 seconds

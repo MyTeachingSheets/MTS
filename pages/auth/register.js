@@ -13,12 +13,32 @@ export default function Register() {
     e.preventDefault()
     setMessage(null)
     setLoading(true)
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    setLoading(false)
-    if (error) setMessage({ type: 'error', text: error.message })
-    else {
-      setMessage({ type: 'success', text: 'Check your email for confirmation (if enabled).' })
-      setTimeout(() => router.push('/auth/login'), 1500)
+
+    try {
+      // First, check if email already exists
+      const checkResponse = await fetch(`/api/check-email?email=${encodeURIComponent(email)}`)
+      const checkData = await checkResponse.json()
+
+      if (checkData.exists) {
+        setMessage({ type: 'error', text: 'This email is already registered. Please login instead.' })
+        setLoading(false)
+        return
+      }
+
+      // Proceed with signup if email doesn't exist
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      setLoading(false)
+      
+      if (error) {
+        setMessage({ type: 'error', text: error.message })
+      } else {
+        setMessage({ type: 'success', text: 'Check your email for confirmation (if enabled).' })
+        setTimeout(() => router.push('/auth/login'), 1500)
+      }
+    } catch (err) {
+      setLoading(false)
+      setMessage({ type: 'error', text: 'An error occurred. Please try again.' })
+      console.error('Registration error:', err)
     }
   }
 
