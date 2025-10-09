@@ -75,7 +75,11 @@ export default function Header() {
                   <div className="profile-dropdown" role="menu">
                     <Link href="/profile" className="profile-item" role="menuitem" onClick={() => setShowProfileMenu(false)}>Profile</Link>
                     <Link href="/ai/generate" className="profile-item" role="menuitem" onClick={() => setShowProfileMenu(false)}>Generate</Link>
-                    <button className="profile-item" role="menuitem" onClick={async () => { await supabase.auth.signOut(); window.location.reload() }}>
+                    <button className="profile-item" role="menuitem" onClick={async () => { 
+                      await supabase.auth.signOut(); 
+                      setShowProfileMenu(false);
+                      openAuthModal('login');
+                    }}>
                       Logout
                     </button>
                   </div>

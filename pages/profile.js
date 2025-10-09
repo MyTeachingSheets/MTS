@@ -49,6 +49,8 @@ export default function ProfilePage() {
   async function handleLogout() {
     await supabase.auth.signOut()
     setUser(null)
+    // Redirect to home page where AuthModal will be available
+    window.location.href = '/'
   }
 
   async function handleAvatarUpload(event) {
