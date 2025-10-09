@@ -18,7 +18,7 @@ export default function Login() {
     if (error) setMessage({ type: 'error', text: error.message })
     else {
       setMessage({ type: 'success', text: 'Logged in' })
-      router.push('/')
+      router.push('/?auth=login')
     }
   }
 
@@ -38,7 +38,7 @@ export default function Login() {
           </div>
           <div className="form-actions">
             <button className="btn" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
-            <a className="small-link" href="/auth/register">Create account</a>
+            <a className="small-link" href="/?auth=register">Create account</a>
           </div>
           {message && <div className={"msg " + (message.type === 'error' ? 'error' : '')}>{message.text}</div>}
         </form>

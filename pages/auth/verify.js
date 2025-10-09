@@ -92,7 +92,7 @@ export default function Verify() {
             <div>
               <div style={{ fontSize: '3rem', color: '#ef4444', marginBottom: '1rem' }}>✗</div>
               <p style={{ color: '#ef4444' }}>{message}</p>
-              <a href="/auth/login" className="btn" style={{ marginTop: '1rem', display: 'inline-block' }}>Go to Login</a>
+              <a href="/?auth=login" className="btn" style={{ marginTop: '1rem', display: 'inline-block' }}>Go to Login</a>
             </div>
           )}
         </div>

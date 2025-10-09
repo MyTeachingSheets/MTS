@@ -33,7 +33,7 @@ export default function Register() {
         setMessage({ type: 'error', text: error.message })
       } else {
         setMessage({ type: 'success', text: 'Check your email for confirmation (if enabled).' })
-        setTimeout(() => router.push('/auth/login'), 1500)
+        setTimeout(() => router.push('/?auth=login'), 1500)
       }
     } catch (err) {
       setLoading(false)
@@ -58,7 +58,7 @@ export default function Register() {
           </div>
           <div className="form-actions">
             <button className="btn" type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create account'}</button>
-            <a className="small-link" href="/auth/login">Already have an account?</a>
+            <a className="small-link" href="/?auth=login">Already have an account?</a>
           </div>
           {message && <div className={"msg " + (message.type === 'error' ? 'error' : '')}>{message.text}</div>}
         </form>
