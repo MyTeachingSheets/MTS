@@ -233,10 +233,18 @@ export default function AIGeneratePage(){
         })
       })
 
-      const data = await response.json()
+      let data = null
+      try {
+        data = await response.json()
+      } catch (parseErr) {
+        // If response is not JSON, capture raw text for debugging
+        const raw = await response.text()
+        console.error('Non-JSON response from /api/ai/generate:', raw)
+        throw new Error('Non-JSON response from server: ' + raw)
+      }
 
       if (!response.ok) {
-        throw new Error(data.details || data.error || 'Failed to generate worksheet')
+        throw new Error(data?.details || data?.error || 'Failed to generate worksheet')
       }
 
       // Create worksheet entry with AI-generated content

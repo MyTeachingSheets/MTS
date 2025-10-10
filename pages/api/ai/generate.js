@@ -7,7 +7,19 @@ const openai = new OpenAI({
 })
 
 export default async function handler(req, res) {
-  // Only allow POST requests
+  // Basic CORS handling: allow preflight and POST
+  // Use NEXT_PUBLIC_SITE_URL in production or '*' for local/dev
+  const allowOrigin = process.env.NEXT_PUBLIC_SITE_URL || '*'
+  res.setHeader('Access-Control-Allow-Origin', allowOrigin)
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+  // Respond to CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+
+  // Only allow POST requests for actual generation
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
