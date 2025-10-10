@@ -8,10 +8,11 @@ export default function AIGeneratePage(){
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
 
-  const [subject, setSubject] = useState('')
-  const [standard, setStandard] = useState('')
-  const [grade, setGrade] = useState('')
-  const [domain, setDomain] = useState('')
+  // Hierarchical selections
+  const [selectedSubject, setSelectedSubject] = useState(null)
+  const [selectedFramework, setSelectedFramework] = useState(null)
+  const [selectedGrade, setSelectedGrade] = useState(null)
+  const [selectedDomain, setSelectedDomain] = useState(null)
   const [worksheetType, setWorksheetType] = useState('')
 
   // Generated worksheets list
@@ -27,41 +28,124 @@ export default function AIGeneratePage(){
   const [worksheetTypes, setWorksheetTypes] = useState([])
   const [loadingTypes, setLoadingTypes] = useState(true)
 
-  // Dynamic dropdown options loaded from admin settings
+  // Dynamic dropdown options loaded from admin settings (hierarchical)
   const [subjects, setSubjects] = useState([])
-  const [standards, setStandards] = useState([])
+  const [frameworks, setFrameworks] = useState([])
   const [grades, setGrades] = useState([])
+  const [domains, setDomains] = useState([])
   
-  const DOMAINS = {
-    'Mathematics': ['Numbers & Operations', 'Algebra', 'Geometry', 'Measurement', 'Data Analysis', 'Probability'],
-    'English Language Arts': ['Reading', 'Writing', 'Speaking & Listening', 'Language'],
-    'Science': ['Life Science', 'Physical Science', 'Earth Science', 'Space Science'],
-    'Social Studies': ['History', 'Geography', 'Economics', 'Civics', 'Culture'],
-    'Reading': ['Comprehension', 'Vocabulary', 'Fluency', 'Phonics'],
-    'default': ['General']
-  }
+  const [loadingFrameworks, setLoadingFrameworks] = useState(false)
+  const [loadingGrades, setLoadingGrades] = useState(false)
+  const [loadingDomains, setLoadingDomains] = useState(false)
 
-  // Load worksheet types and admin settings
+  // Load worksheet types and subjects on mount
   useEffect(() => {
     loadWorksheetTypes()
-    loadAdminSettings()
+    loadSubjects()
   }, [])
 
-  const loadAdminSettings = async () => {
+  // Load frameworks when subject changes
+  useEffect(() => {
+    if (selectedSubject) {
+      loadFrameworks(selectedSubject.id)
+      setSelectedFramework(null)
+      setSelectedGrade(null)
+      setSelectedDomain(null)
+      setFrameworks([])
+      setGrades([])
+      setDomains([])
+    } else {
+      setFrameworks([])
+      setSelectedFramework(null)
+      setSelectedGrade(null)
+      setSelectedDomain(null)
+      setGrades([])
+      setDomains([])
+    }
+  }, [selectedSubject])
+
+  // Load grades when framework changes
+  useEffect(() => {
+    if (selectedFramework) {
+      loadGrades(selectedFramework.id)
+      setSelectedGrade(null)
+      setSelectedDomain(null)
+      setGrades([])
+      setDomains([])
+    } else {
+      setGrades([])
+      setSelectedGrade(null)
+      setSelectedDomain(null)
+      setDomains([])
+    }
+  }, [selectedFramework])
+
+  // Load domains when grade changes
+  useEffect(() => {
+    if (selectedGrade) {
+      loadDomains(selectedGrade.id)
+      setSelectedDomain(null)
+      setDomains([])
+    } else {
+      setDomains([])
+      setSelectedDomain(null)
+    }
+  }, [selectedGrade])
+
+  const loadSubjects = async () => {
     try {
-      const res = await fetch('/api/admin-settings')
+      const res = await fetch('/api/admin-settings?type=subjects')
       if (res.ok) {
         const data = await res.json()
         setSubjects(data.subjects || [])
-        setGrades(data.grades || [])
-        setStandards(data.standards || [])
       }
     } catch (err) {
-      console.error('Failed to load admin settings:', err)
-      // Fallback to defaults if API fails
-      setSubjects(['Mathematics', 'Science', 'English Language Arts'])
-      setGrades(['Grade 1', 'Grade 2', 'Grade 3'])
-      setStandards(['Common Core State Standards (CCSS)'])
+      console.error('Failed to load subjects:', err)
+    }
+  }
+
+  const loadFrameworks = async (subjectId) => {
+    setLoadingFrameworks(true)
+    try {
+      const res = await fetch(`/api/admin-settings?type=frameworks&parent_id=${subjectId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setFrameworks(data.frameworks || [])
+      }
+    } catch (err) {
+      console.error('Failed to load frameworks:', err)
+    } finally {
+      setLoadingFrameworks(false)
+    }
+  }
+
+  const loadGrades = async (frameworkId) => {
+    setLoadingGrades(true)
+    try {
+      const res = await fetch(`/api/admin-settings?type=grades&parent_id=${frameworkId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setGrades(data.grades || [])
+      }
+    } catch (err) {
+      console.error('Failed to load grades:', err)
+    } finally {
+      setLoadingGrades(false)
+    }
+  }
+
+  const loadDomains = async (gradeId) => {
+    setLoadingDomains(true)
+    try {
+      const res = await fetch(`/api/admin-settings?type=domains&parent_id=${gradeId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDomains(data.domains || [])
+      }
+    } catch (err) {
+      console.error('Failed to load domains:', err)
+    } finally {
+      setLoadingDomains(false)
     }
   }
 
@@ -121,15 +205,11 @@ export default function AIGeneratePage(){
     }
   }
 
-  const getCurrentDomains = () => {
-    return DOMAINS[subject] || DOMAINS['default']
-  }
-
   async function handleGenerate(e){
     e && e.preventDefault()
     
     // Validation
-    if (!subject || !grade || !worksheetType) {
+    if (!selectedSubject || !selectedGrade || !worksheetType) {
       alert('Please select Subject, Grade, and Worksheet Type')
       return
     }
@@ -142,9 +222,9 @@ export default function AIGeneratePage(){
       // Create a mock worksheet entry based on selections and prompt
       const id = Date.now()
       const titleParts = []
-      if (grade) titleParts.push(grade)
-      if (subject) titleParts.push(subject)
-      if (domain) titleParts.push(domain)
+      if (selectedGrade) titleParts.push(selectedGrade.name)
+      if (selectedSubject) titleParts.push(selectedSubject.name)
+      if (selectedDomain) titleParts.push(selectedDomain.name)
       const title = titleParts.join(' - ') + ` Worksheet`
 
       const selectedType = worksheetTypes.find(t => t.id === worksheetType || t.name === worksheetType)
@@ -280,33 +360,70 @@ export default function AIGeneratePage(){
         <aside className="ai-left-panel">
           <div className="ai-form-group">
             <label>Subject *</label>
-            <select className="input-text" value={subject} onChange={e=>{ setSubject(e.target.value); setDomain('') }}>
+            <select 
+              className="input-text" 
+              value={selectedSubject?.id || ''} 
+              onChange={e => {
+                const subject = subjects.find(s => s.id === e.target.value)
+                setSelectedSubject(subject || null)
+              }}
+            >
               <option value="">Select</option>
-              {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
 
           <div className="ai-form-group">
-            <label>Grade *</label>
-            <select className="input-text" value={grade} onChange={e=>setGrade(e.target.value)}>
-              <option value="">Select</option>
-              {grades.map(g => <option key={g} value={g}>{g}</option>)}
+            <label>Framework{selectedSubject ? ' *' : ''}</label>
+            <select 
+              className="input-text" 
+              value={selectedFramework?.id || ''} 
+              onChange={e => {
+                const framework = frameworks.find(f => f.id === e.target.value)
+                setSelectedFramework(framework || null)
+              }}
+              disabled={!selectedSubject || loadingFrameworks}
+            >
+              <option value="">
+                {!selectedSubject ? 'Select subject first' : loadingFrameworks ? 'Loading...' : 'Select'}
+              </option>
+              {frameworks.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
 
           <div className="ai-form-group">
-            <label>Domain</label>
-            <select className="input-text" value={domain} onChange={e=>setDomain(e.target.value)} disabled={!subject}>
-              <option value="">Select</option>
-              {getCurrentDomains().map(d => <option key={d} value={d}>{d}</option>)}
+            <label>Grade{selectedFramework ? ' *' : ''}</label>
+            <select 
+              className="input-text" 
+              value={selectedGrade?.id || ''} 
+              onChange={e => {
+                const grade = grades.find(g => g.id === e.target.value)
+                setSelectedGrade(grade || null)
+              }}
+              disabled={!selectedFramework || loadingGrades}
+            >
+              <option value="">
+                {!selectedFramework ? 'Select framework first' : loadingGrades ? 'Loading...' : 'Select'}
+              </option>
+              {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>
 
           <div className="ai-form-group">
-            <label>Standard</label>
-            <select className="input-text" value={standard} onChange={e=>setStandard(e.target.value)}>
-              <option value="">Select</option>
-              {standards.map(s => <option key={s} value={s}>{s}</option>)}
+            <label>Domain (optional)</label>
+            <select 
+              className="input-text" 
+              value={selectedDomain?.id || ''} 
+              onChange={e => {
+                const domain = domains.find(d => d.id === e.target.value)
+                setSelectedDomain(domain || null)
+              }}
+              disabled={!selectedGrade || loadingDomains}
+            >
+              <option value="">
+                {!selectedGrade ? 'Select grade first' : loadingDomains ? 'Loading...' : 'Select (optional)'}
+              </option>
+              {domains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
 

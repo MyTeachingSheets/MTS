@@ -1,336 +1,465 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 
-export default function AdminSettings({ initialSubjects, initialGrades, initialStandards }) {
+export default function AdminSettings({ initialSubjects }) {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
   
-  // State for subjects, grades, standards - initialized with server-side props
+  // Subjects (top level)
   const [subjects, setSubjects] = useState(initialSubjects || [])
-  const [grades, setGrades] = useState(initialGrades || [])
-  const [standards, setStandards] = useState(initialStandards || [])
-  
-  // State for new items
+  const [selectedSubject, setSelectedSubject] = useState(null)
   const [newSubject, setNewSubject] = useState('')
-  const [newGrade, setNewGrade] = useState('')
-  const [newStandard, setNewStandard] = useState('')
   
+  // Frameworks (level 2 - filtered by subject)
+  const [frameworks, setFrameworks] = useState([])
+  const [selectedFramework, setSelectedFramework] = useState(null)
+  const [newFramework, setNewFramework] = useState('')
+  
+  // Grades (level 3 - filtered by framework)
+  const [grades, setGrades] = useState([])
+  const [selectedGrade, setSelectedGrade] = useState(null)
+  const [newGrade, setNewGrade] = useState('')
+  
+  // Domains (level 4 - filtered by grade)
+  const [domains, setDomains] = useState([])
+  const [newDomain, setNewDomain] = useState('')
+  
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const loadSettings = async () => {
+  // Load frameworks when subject is selected
+  useEffect(() => {
+    if (selectedSubject) {
+      loadFrameworks(selectedSubject.id)
+      setSelectedFramework(null)
+      setSelectedGrade(null)
+      setGrades([])
+      setDomains([])
+    } else {
+      setFrameworks([])
+      setSelectedFramework(null)
+      setSelectedGrade(null)
+      setGrades([])
+      setDomains([])
+    }
+  }, [selectedSubject])
+
+  // Load grades when framework is selected
+  useEffect(() => {
+    if (selectedFramework) {
+      loadGrades(selectedFramework.id)
+      setSelectedGrade(null)
+      setDomains([])
+    } else {
+      setGrades([])
+      setSelectedGrade(null)
+      setDomains([])
+    }
+  }, [selectedFramework])
+
+  // Load domains when grade is selected
+  useEffect(() => {
+    if (selectedGrade) {
+      loadDomains(selectedGrade.id)
+    } else {
+      setDomains([])
+    }
+  }, [selectedGrade])
+
+  const loadFrameworks = async (subjectId) => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin-settings')
+      const res = await fetch(`/api/admin-settings?type=frameworks&parent_id=${subjectId}`)
       if (res.ok) {
         const data = await res.json()
-        setSubjects(data.subjects || [])
-        setGrades(data.grades || [])
-        setStandards(data.standards || [])
+        setFrameworks(data.frameworks || [])
       }
     } catch (err) {
-      setError('Failed to load settings')
+      console.error('Failed to load frameworks:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const addItem = async (type, value) => {
+  const loadGrades = async (frameworkId) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin-settings?type=grades&parent_id=${frameworkId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setGrades(data.grades || [])
+      }
+    } catch (err) {
+      console.error('Failed to load grades:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadDomains = async (gradeId) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin-settings?type=domains&parent_id=${gradeId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDomains(data.domains || [])
+      }
+    } catch (err) {
+      console.error('Failed to load domains:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addItem = async (type, value, parentId = null) => {
     if (!value.trim()) return
-    
-    setSaving(true)
+
+    setLoading(true)
     setError('')
     setSuccess('')
-    
+
     try {
       const res = await fetch('/api/admin-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', type, value: value.trim() })
+        body: JSON.stringify({ action: 'add', type, value: value.trim(), parent_id: parentId })
       })
-      
+
       if (res.ok) {
         const data = await res.json()
+        setSuccess(`${type} added successfully!`)
+        
+        // Refresh the appropriate list
         if (type === 'subject') {
-          setSubjects(data.subjects)
+          const subjectsRes = await fetch('/api/admin-settings?type=subjects')
+          if (subjectsRes.ok) {
+            const subjectsData = await subjectsRes.json()
+            setSubjects(subjectsData.subjects || [])
+          }
           setNewSubject('')
-        } else if (type === 'grade') {
-          setGrades(data.grades)
+        } else if (type === 'framework' && selectedSubject) {
+          loadFrameworks(selectedSubject.id)
+          setNewFramework('')
+        } else if (type === 'grade' && selectedFramework) {
+          loadGrades(selectedFramework.id)
           setNewGrade('')
-        } else if (type === 'standard') {
-          setStandards(data.standards)
-          setNewStandard('')
+        } else if (type === 'domain' && selectedGrade) {
+          loadDomains(selectedGrade.id)
+          setNewDomain('')
         }
-        setSuccess(`${type} added successfully`)
+
         setTimeout(() => setSuccess(''), 3000)
       } else {
-        setError('Failed to add item')
+        const data = await res.json()
+        setError(data.error || 'Failed to add item')
       }
     } catch (err) {
-      setError('Error adding item')
+      setError('Network error')
+      console.error('Add item error:', err)
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
   }
 
-  const deleteItem = async (type, value) => {
-    if (!confirm(`Delete ${type}: ${value}?`)) return
-    
-    setSaving(true)
+  const deleteItem = async (type, id) => {
+    if (!confirm(`Are you sure you want to delete this ${type}? This will also delete all child items.`)) return
+
+    setLoading(true)
     setError('')
-    
+
     try {
       const res = await fetch('/api/admin-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', type, value })
+        body: JSON.stringify({ action: 'delete', type, id })
       })
-      
+
       if (res.ok) {
-        const data = await res.json()
-        if (type === 'subject') setSubjects(data.subjects)
-        else if (type === 'grade') setGrades(data.grades)
-        else if (type === 'standard') setStandards(data.standards)
-        setSuccess(`${type} deleted successfully`)
-        setTimeout(() => setSuccess(''), 3000)
+        // Refresh the appropriate list
+        if (type === 'subject') {
+          const subjectsRes = await fetch('/api/admin-settings?type=subjects')
+          if (subjectsRes.ok) {
+            const subjectsData = await subjectsRes.json()
+            setSubjects(subjectsData.subjects || [])
+          }
+          if (selectedSubject?.id === id) {
+            setSelectedSubject(null)
+          }
+        } else if (type === 'framework' && selectedSubject) {
+          loadFrameworks(selectedSubject.id)
+          if (selectedFramework?.id === id) {
+            setSelectedFramework(null)
+          }
+        } else if (type === 'grade' && selectedFramework) {
+          loadGrades(selectedFramework.id)
+          if (selectedGrade?.id === id) {
+            setSelectedGrade(null)
+          }
+        } else if (type === 'domain' && selectedGrade) {
+          loadDomains(selectedGrade.id)
+        }
       } else {
-        setError('Failed to delete item')
+        const data = await res.json()
+        setError(data.error || 'Failed to delete item')
       }
     } catch (err) {
-      setError('Error deleting item')
+      setError('Network error')
+      console.error('Delete item error:', err)
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <p>Loading settings...</p>
-      </div>
-    )
   }
 
   return (
-    <div className="admin-settings-page">
+    <div className="admin-settings">
       <div className="admin-header">
         <h1>Admin Settings</h1>
-        <div className="admin-nav">
-          <a href="/admin/logs">View Logs</a>
-          <button onClick={() => router.push('/')}>Back to Site</button>
+        <div className="admin-actions">
+          <button onClick={() => router.push('/admin/logs')} className="btn-secondary">
+            Logs
+          </button>
+          <button onClick={() => router.push('/')} className="btn-secondary">
+            Home
+          </button>
         </div>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{success}</div>}
+      {error && <div className="message error-message">{error}</div>}
+      {success && <div className="message success-message">{success}</div>}
 
-      <div className="settings-grid">
-        {/* Subjects Section */}
-        <div className="settings-section">
-          <h2>Subjects</h2>
-          <div className="add-item-form">
+      <div className="hierarchy-container">
+        {/* Level 1: Subjects */}
+        <div className="hierarchy-level">
+          <h2>1. Subjects</h2>
+          <div className="add-section">
             <input
               type="text"
-              placeholder="New subject name"
               value={newSubject}
               onChange={(e) => setNewSubject(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addItem('subject', newSubject)}
+              placeholder="Add new subject"
+              onKeyDown={(e) => e.key === 'Enter' && addItem('subject', newSubject)}
             />
-            <button onClick={() => addItem('subject', newSubject)} disabled={saving || !newSubject.trim()}>
-              Add Subject
+            <button onClick={() => addItem('subject', newSubject)} disabled={loading || !newSubject.trim()}>
+              Add
             </button>
           </div>
           <div className="items-list">
-            {subjects.map((subject, idx) => (
-              <div key={idx} className="item-row">
-                <span>{subject}</span>
-                <button className="delete-btn" onClick={() => deleteItem('subject', subject)} disabled={saving}>
-                  ×
-                </button>
+            {subjects.map((subject) => (
+              <div 
+                key={subject.id} 
+                className={`item ${selectedSubject?.id === subject.id ? 'selected' : ''}`}
+                onClick={() => setSelectedSubject(subject)}
+              >
+                <span>{subject.name}</span>
+                <button onClick={(e) => { e.stopPropagation(); deleteItem('subject', subject.id); }} className="delete-btn">×</button>
               </div>
             ))}
-            {subjects.length === 0 && <p className="empty-state">No subjects yet</p>}
           </div>
         </div>
 
-        {/* Grades Section */}
-        <div className="settings-section">
-          <h2>Grades</h2>
-          <div className="add-item-form">
-            <input
-              type="text"
-              placeholder="New grade level"
-              value={newGrade}
-              onChange={(e) => setNewGrade(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addItem('grade', newGrade)}
-            />
-            <button onClick={() => addItem('grade', newGrade)} disabled={saving || !newGrade.trim()}>
-              Add Grade
-            </button>
+        {/* Level 2: Frameworks */}
+        {selectedSubject && (
+          <div className="hierarchy-level">
+            <h2>2. Frameworks for "{selectedSubject.name}"</h2>
+            <div className="add-section">
+              <input
+                type="text"
+                value={newFramework}
+                onChange={(e) => setNewFramework(e.target.value)}
+                placeholder="Add framework"
+                onKeyDown={(e) => e.key === 'Enter' && addItem('framework', newFramework, selectedSubject.id)}
+              />
+              <button onClick={() => addItem('framework', newFramework, selectedSubject.id)} disabled={loading || !newFramework.trim()}>
+                Add
+              </button>
+            </div>
+            <div className="items-list">
+              {frameworks.map((framework) => (
+                <div 
+                  key={framework.id} 
+                  className={`item ${selectedFramework?.id === framework.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedFramework(framework)}
+                >
+                  <span>{framework.name}</span>
+                  <button onClick={(e) => { e.stopPropagation(); deleteItem('framework', framework.id); }} className="delete-btn">×</button>
+                </div>
+              ))}
+              {frameworks.length === 0 && <div className="empty-state">No frameworks yet. Add one above.</div>}
+            </div>
           </div>
-          <div className="items-list">
-            {grades.map((grade, idx) => (
-              <div key={idx} className="item-row">
-                <span>{grade}</span>
-                <button className="delete-btn" onClick={() => deleteItem('grade', grade)} disabled={saving}>
-                  ×
-                </button>
-              </div>
-            ))}
-            {grades.length === 0 && <p className="empty-state">No grades yet</p>}
-          </div>
-        </div>
+        )}
 
-        {/* Standards Section */}
-        <div className="settings-section">
-          <h2>Standards</h2>
-          <div className="add-item-form">
-            <input
-              type="text"
-              placeholder="New standard"
-              value={newStandard}
-              onChange={(e) => setNewStandard(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addItem('standard', newStandard)}
-            />
-            <button onClick={() => addItem('standard', newStandard)} disabled={saving || !newStandard.trim()}>
-              Add Standard
-            </button>
+        {/* Level 3: Grades */}
+        {selectedFramework && (
+          <div className="hierarchy-level">
+            <h2>3. Grades for "{selectedFramework.name}"</h2>
+            <div className="add-section">
+              <input
+                type="text"
+                value={newGrade}
+                onChange={(e) => setNewGrade(e.target.value)}
+                placeholder="Add grade"
+                onKeyDown={(e) => e.key === 'Enter' && addItem('grade', newGrade, selectedFramework.id)}
+              />
+              <button onClick={() => addItem('grade', newGrade, selectedFramework.id)} disabled={loading || !newGrade.trim()}>
+                Add
+              </button>
+            </div>
+            <div className="items-list">
+              {grades.map((grade) => (
+                <div 
+                  key={grade.id} 
+                  className={`item ${selectedGrade?.id === grade.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedGrade(grade)}
+                >
+                  <span>{grade.name}</span>
+                  <button onClick={(e) => { e.stopPropagation(); deleteItem('grade', grade.id); }} className="delete-btn">×</button>
+                </div>
+              ))}
+              {grades.length === 0 && <div className="empty-state">No grades yet. Add one above.</div>}
+            </div>
           </div>
-          <div className="items-list">
-            {standards.map((standard, idx) => (
-              <div key={idx} className="item-row">
-                <span>{standard}</span>
-                <button className="delete-btn" onClick={() => deleteItem('standard', standard)} disabled={saving}>
-                  ×
-                </button>
-              </div>
-            ))}
-            {standards.length === 0 && <p className="empty-state">No standards yet</p>}
+        )}
+
+        {/* Level 4: Domains */}
+        {selectedGrade && (
+          <div className="hierarchy-level">
+            <h2>4. Domains for Grade "{selectedGrade.name}"</h2>
+            <div className="add-section">
+              <input
+                type="text"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+                placeholder="Add domain"
+                onKeyDown={(e) => e.key === 'Enter' && addItem('domain', newDomain, selectedGrade.id)}
+              />
+              <button onClick={() => addItem('domain', newDomain, selectedGrade.id)} disabled={loading || !newDomain.trim()}>
+                Add
+              </button>
+            </div>
+            <div className="items-list">
+              {domains.map((domain) => (
+                <div key={domain.id} className="item">
+                  <span>{domain.name}</span>
+                  <button onClick={() => deleteItem('domain', domain.id)} className="delete-btn">×</button>
+                </div>
+              ))}
+              {domains.length === 0 && <div className="empty-state">No domains yet. Add one above.</div>}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <style jsx>{`
-        .admin-settings-page {
-          min-height: 100vh;
-          background: #f5f5f5;
-          padding: 40px 20px;
+        .admin-settings {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 24px;
         }
 
         .admin-header {
-          max-width: 1200px;
-          margin: 0 auto 40px;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          margin-bottom: 32px;
+          padding-bottom: 16px;
+          border-bottom: 2px solid var(--border-color);
         }
 
         .admin-header h1 {
+          font-size: 2rem;
           margin: 0;
-          color: var(--primary-navy);
+          color: var(--text-primary);
         }
 
-        .admin-nav {
+        .admin-actions {
           display: flex;
           gap: 12px;
         }
 
-        .admin-nav a,
-        .admin-nav button {
+        .btn-secondary {
           padding: 8px 16px;
-          background: white;
-          border: 1px solid var(--border-light);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
           border-radius: 6px;
-          text-decoration: none;
-          color: var(--text-primary);
           cursor: pointer;
+          font-size: 0.95rem;
           transition: all 0.2s;
         }
 
-        .admin-nav a:hover,
-        .admin-nav button:hover {
-          background: var(--primary-navy);
-          color: white;
-          border-color: var(--primary-navy);
+        .btn-secondary:hover {
+          background: var(--bg-hover);
         }
 
-        .error-message {
-          max-width: 1200px;
-          margin: 0 auto 20px;
+        .message {
           padding: 12px 16px;
-          background: #fee;
-          border: 1px solid #fcc;
           border-radius: 6px;
-          color: #c00;
-        }
-
-        .success-message {
-          max-width: 1200px;
-          margin: 0 auto 20px;
-          padding: 12px 16px;
-          background: #e8f5e9;
-          border: 1px solid #a5d6a7;
-          border-radius: 6px;
-          color: #2e7d32;
-        }
-
-        .settings-grid {
-          max-width: 1200px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-          gap: 24px;
-        }
-
-        .settings-section {
-          background: white;
-          border-radius: 8px;
-          padding: 24px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .settings-section h2 {
-          margin: 0 0 20px 0;
-          color: var(--primary-navy);
-          font-size: 1.3rem;
-        }
-
-        .add-item-form {
-          display: flex;
-          gap: 8px;
           margin-bottom: 20px;
         }
 
-        .add-item-form input {
+        .error-message {
+          background: #ffebee;
+          color: #c62828;
+          border: 1px solid #ef5350;
+        }
+
+        .success-message {
+          background: #e8f5e9;
+          color: #2e7d32;
+          border: 1px solid #66bb6a;
+        }
+
+        .hierarchy-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 24px;
+        }
+
+        .hierarchy-level {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          padding: 20px;
+          min-height: 400px;
+        }
+
+        .hierarchy-level h2 {
+          font-size: 1.1rem;
+          margin: 0 0 16px 0;
+          color: var(--text-primary);
+          font-weight: 600;
+        }
+
+        .add-section {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .add-section input {
           flex: 1;
-          padding: 10px 12px;
-          border: 1px solid var(--border-light);
-          border-radius: 6px;
-          font-size: 0.95rem;
+          padding: 8px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 4px;
+          font-size: 0.9rem;
         }
 
-        .add-item-form input:focus {
-          outline: none;
-          border-color: var(--primary-navy);
-        }
-
-        .add-item-form button {
-          padding: 10px 20px;
-          background: var(--primary-navy);
+        .add-section button {
+          padding: 8px 16px;
+          background: var(--primary-color);
           color: white;
           border: none;
-          border-radius: 6px;
-          font-weight: 600;
+          border-radius: 4px;
           cursor: pointer;
+          font-size: 0.9rem;
           transition: all 0.2s;
         }
 
-        .add-item-form button:hover:not(:disabled) {
-          background: var(--primary-navy-dark);
+        .add-section button:hover:not(:disabled) {
+          background: var(--primary-hover);
         }
 
-        .add-item-form button:disabled {
+        .add-section button:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
@@ -341,32 +470,42 @@ export default function AdminSettings({ initialSubjects, initialGrades, initialS
           gap: 8px;
         }
 
-        .item-row {
+        .item {
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 10px 12px;
-          background: #f9f9f9;
-          border-radius: 6px;
+          background: white;
+          border: 1px solid var(--border-color);
+          border-radius: 4px;
+          cursor: pointer;
           transition: all 0.2s;
         }
 
-        .item-row:hover {
-          background: #f0f0f0;
+        .item:hover {
+          background: var(--bg-hover);
+          border-color: var(--primary-color);
         }
 
-        .item-row span {
-          font-size: 0.95rem;
+        .item.selected {
+          background: #e3f2fd;
+          border-color: var(--primary-color);
+          font-weight: 500;
+        }
+
+        .item span {
+          flex: 1;
+          font-size: 0.9rem;
           color: var(--text-primary);
         }
 
         .delete-btn {
-          width: 28px;
-          height: 28px;
+          width: 24px;
+          height: 24px;
           border: none;
           background: transparent;
           color: #d32f2f;
-          font-size: 1.5rem;
+          font-size: 1.3rem;
           cursor: pointer;
           border-radius: 4px;
           transition: all 0.2s;
@@ -376,19 +515,14 @@ export default function AdminSettings({ initialSubjects, initialGrades, initialS
           line-height: 1;
         }
 
-        .delete-btn:hover:not(:disabled) {
+        .delete-btn:hover {
           background: #ffebee;
-        }
-
-        .delete-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
         }
 
         .empty-state {
           text-align: center;
           color: var(--text-secondary);
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           font-style: italic;
           padding: 20px;
         }
@@ -400,7 +534,7 @@ export default function AdminSettings({ initialSubjects, initialGrades, initialS
             gap: 16px;
           }
 
-          .settings-grid {
+          .hierarchy-container {
             grid-template-columns: 1fr;
           }
         }
@@ -412,7 +546,6 @@ export default function AdminSettings({ initialSubjects, initialGrades, initialS
 export async function getServerSideProps(ctx) {
   const token = ctx.req.cookies?.['log_admin_token'] || ''
   if (!process.env.LOG_ADMIN_TOKEN || token !== process.env.LOG_ADMIN_TOKEN) {
-    // redirect to login page when not authenticated
     return {
       redirect: {
         destination: '/admin/login',
@@ -421,32 +554,30 @@ export async function getServerSideProps(ctx) {
     }
   }
 
-  // Load settings server-side
-  const fs = require('fs')
-  const path = require('path')
-  const dataDir = path.join(process.cwd(), 'data')
-  const settingsPath = path.join(dataDir, 'admin-settings.json')
+  // Load initial subjects server-side
+  const { createClient } = require('@supabase/supabase-js')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-  let settings = {
-    subjects: ['Mathematics', 'Science', 'English', 'Social Studies', 'History', 'Geography'],
-    grades: ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
-    standards: ['Common Core', 'State Standard', 'IB', 'Cambridge', 'Custom']
-  }
-
+  let subjects = []
   try {
-    if (fs.existsSync(settingsPath)) {
-      const fileData = fs.readFileSync(settingsPath, 'utf-8')
-      settings = JSON.parse(fileData)
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true })
+    
+    if (!error && data) {
+      subjects = data
     }
   } catch (err) {
-    console.error('Error loading settings:', err)
+    console.error('Error loading subjects:', err)
   }
 
   return {
     props: {
-      initialSubjects: settings.subjects || [],
-      initialGrades: settings.grades || [],
-      initialStandards: settings.standards || []
+      initialSubjects: subjects
     }
   }
 }

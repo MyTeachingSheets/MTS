@@ -1,84 +1,12 @@
-// API endpoint for managing admin settings (subjects, grades, standards)
-// This example uses a simple JSON file storage approach
-// You can replace this with Supabase or your preferred database
+// API endpoint for managing hierarchical admin settings (subjects → frameworks → grades → domains)
+// Uses Supabase for storage
 
-import fs from 'fs'
-import path from 'path'
+import { createClient } from '@supabase/supabase-js'
 
-const SETTINGS_FILE = path.join(process.cwd(), 'data', 'admin-settings.json')
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Ensure data directory exists
-function ensureDataDir() {
-  const dataDir = path.join(process.cwd(), 'data')
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true })
-  }
-}
-
-// Load settings from file
-function loadSettings() {
-  ensureDataDir()
-  
-  if (!fs.existsSync(SETTINGS_FILE)) {
-    // Initialize with default values
-    const defaultSettings = {
-      subjects: [
-        'Mathematics',
-        'English Language Arts',
-        'Science',
-        'Social Studies',
-        'Reading',
-        'Writing',
-        'Grammar',
-        'Vocabulary',
-        'Spelling',
-        'History',
-        'Geography',
-        'Biology',
-        'Chemistry',
-        'Physics',
-        'Art',
-        'Music',
-        'Physical Education'
-      ],
-      grades: [
-        'Pre-K',
-        'Kindergarten',
-        'Grade 1',
-        'Grade 2',
-        'Grade 3',
-        'Grade 4',
-        'Grade 5',
-        'Grade 6',
-        'Grade 7',
-        'Grade 8',
-        'Grade 9',
-        'Grade 10',
-        'Grade 11',
-        'Grade 12'
-      ],
-      standards: [
-        'Common Core State Standards (CCSS)',
-        'Next Generation Science Standards (NGSS)',
-        'State Standards',
-        'International Baccalaureate (IB)',
-        'Cambridge International',
-        'Custom/Other'
-      ]
-    }
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings, null, 2))
-    return defaultSettings
-  }
-  
-  const data = fs.readFileSync(SETTINGS_FILE, 'utf8')
-  return JSON.parse(data)
-}
-
-// Save settings to file
-function saveSettings(settings) {
-  ensureDataDir()
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2))
-}
+const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export default async function handler(req, res) {
   // Check admin authentication using the same cookie as other admin endpoints
@@ -89,73 +17,134 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      // Return current settings
-      const settings = loadSettings()
-      return res.status(200).json(settings)
+      const { type, parent_id } = req.query
+
+      // Get subjects (top level)
+      if (type === 'subjects' || !type) {
+        const { data, error } = await supabase
+          .from('subjects')
+          .select('*')
+          .order('display_order', { ascending: true })
+          .order('name', { ascending: true })
+        
+        if (error) throw error
+        return res.status(200).json({ subjects: data || [] })
+      }
+
+      // Get frameworks for a specific subject
+      if (type === 'frameworks' && parent_id) {
+        const { data, error } = await supabase
+          .from('frameworks')
+          .select('*')
+          .eq('subject_id', parent_id)
+          .order('display_order', { ascending: true })
+          .order('name', { ascending: true })
+        
+        if (error) throw error
+        return res.status(200).json({ frameworks: data || [] })
+      }
+
+      // Get grades for a specific framework
+      if (type === 'grades' && parent_id) {
+        const { data, error } = await supabase
+          .from('grades')
+          .select('*')
+          .eq('framework_id', parent_id)
+          .order('display_order', { ascending: true })
+          .order('name', { ascending: true })
+        
+        if (error) throw error
+        return res.status(200).json({ grades: data || [] })
+      }
+
+      // Get domains for a specific grade
+      if (type === 'domains' && parent_id) {
+        const { data, error } = await supabase
+          .from('domains')
+          .select('*')
+          .eq('grade_id', parent_id)
+          .order('display_order', { ascending: true })
+          .order('name', { ascending: true })
+        
+        if (error) throw error
+        return res.status(200).json({ domains: data || [] })
+      }
+
+      return res.status(400).json({ error: 'Invalid query parameters' })
     }
 
     if (req.method === 'POST') {
-      const { action, type, value } = req.body
+      const { action, type, value, parent_id, display_order, id } = req.body
 
       if (!action || !type) {
-        return res.status(400).json({ error: 'Missing action or type' })
+        return res.status(400).json({ error: 'Missing required fields' })
       }
 
-      const settings = loadSettings()
-
+      // ADD operations
       if (action === 'add') {
-        if (!value || !value.trim()) {
-          return res.status(400).json({ error: 'Value is required' })
+        if (!value) {
+          return res.status(400).json({ error: 'Value is required for add action' })
         }
 
-        const trimmedValue = value.trim()
-
+        let result
         if (type === 'subject') {
-          if (!settings.subjects.includes(trimmedValue)) {
-            settings.subjects.push(trimmedValue)
-            settings.subjects.sort()
-          }
-        } else if (type === 'grade') {
-          if (!settings.grades.includes(trimmedValue)) {
-            settings.grades.push(trimmedValue)
-          }
-        } else if (type === 'standard') {
-          if (!settings.standards.includes(trimmedValue)) {
-            settings.standards.push(trimmedValue)
-          }
+          result = await supabase
+            .from('subjects')
+            .insert({ name: value, display_order: display_order || 0 })
+            .select()
+        } else if (type === 'framework' && parent_id) {
+          result = await supabase
+            .from('frameworks')
+            .insert({ subject_id: parent_id, name: value, display_order: display_order || 0 })
+            .select()
+        } else if (type === 'grade' && parent_id) {
+          result = await supabase
+            .from('grades')
+            .insert({ framework_id: parent_id, name: value, display_order: display_order || 0 })
+            .select()
+        } else if (type === 'domain' && parent_id) {
+          result = await supabase
+            .from('domains')
+            .insert({ grade_id: parent_id, name: value, display_order: display_order || 0 })
+            .select()
         } else {
-          return res.status(400).json({ error: 'Invalid type' })
+          return res.status(400).json({ error: 'Invalid type or missing parent_id' })
         }
 
-        saveSettings(settings)
-        return res.status(200).json(settings)
+        if (result.error) throw result.error
+        return res.status(200).json({ success: true, data: result.data })
       }
 
+      // DELETE operations
       if (action === 'delete') {
-        if (!value) {
-          return res.status(400).json({ error: 'Value is required' })
+        if (!id) {
+          return res.status(400).json({ error: 'ID is required for delete action' })
         }
 
+        let result
         if (type === 'subject') {
-          settings.subjects = settings.subjects.filter(s => s !== value)
+          result = await supabase.from('subjects').delete().eq('id', id)
+        } else if (type === 'framework') {
+          result = await supabase.from('frameworks').delete().eq('id', id)
         } else if (type === 'grade') {
-          settings.grades = settings.grades.filter(g => g !== value)
-        } else if (type === 'standard') {
-          settings.standards = settings.standards.filter(s => s !== value)
+          result = await supabase.from('grades').delete().eq('id', id)
+        } else if (type === 'domain') {
+          result = await supabase.from('domains').delete().eq('id', id)
         } else {
           return res.status(400).json({ error: 'Invalid type' })
         }
 
-        saveSettings(settings)
-        return res.status(200).json(settings)
+        if (result.error) throw result.error
+        return res.status(200).json({ success: true })
       }
 
       return res.status(400).json({ error: 'Invalid action' })
     }
 
+    res.setHeader('Allow', ['GET', 'POST'])
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (error) {
-    console.error('Admin settings error:', error)
-    return res.status(500).json({ error: 'Internal server error' })
+    console.error('Settings API error:', error)
+    return res.status(500).json({ error: error.message || 'Internal server error' })
   }
 }
