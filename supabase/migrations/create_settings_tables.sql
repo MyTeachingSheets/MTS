@@ -1,5 +1,21 @@
--- Create hierarchical settings tables for subjects, frameworks, grades, and domains
+-- Create hierarchical settings tables for subjects, frameworks, grades, and lessons
 -- Each level references the parent level
+
+-- Migration helper: Rename domains table to lessons if it exists
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'domains') THEN
+    -- Add description column if it doesn't exist
+    IF NOT EXISTS (SELECT FROM information_schema.columns 
+                   WHERE table_name = 'domains' AND column_name = 'description') THEN
+      ALTER TABLE domains ADD COLUMN description TEXT;
+    END IF;
+    -- Rename the table
+    ALTER TABLE domains RENAME TO lessons;
+    -- Rename the index
+    ALTER INDEX IF EXISTS idx_domains_grade_id RENAME TO idx_lessons_grade_id;
+  END IF;
+END $$;
 
 -- 1. Subjects (top level)
 CREATE TABLE IF NOT EXISTS subjects (
@@ -54,6 +70,13 @@ ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE frameworks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Allow all operations on subjects" ON subjects;
+DROP POLICY IF EXISTS "Allow all operations on frameworks" ON frameworks;
+DROP POLICY IF EXISTS "Allow all operations on grades" ON grades;
+DROP POLICY IF EXISTS "Allow all operations on domains" ON domains;
+DROP POLICY IF EXISTS "Allow all operations on lessons" ON lessons;
 
 -- Create policies: Allow public read, admin write (you can adjust based on your auth setup)
 -- For now, allow all operations (you should restrict this based on your admin auth)
