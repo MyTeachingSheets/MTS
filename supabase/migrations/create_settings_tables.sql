@@ -71,12 +71,34 @@ ALTER TABLE frameworks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if they exist
-DROP POLICY IF EXISTS "Allow all operations on subjects" ON subjects;
-DROP POLICY IF EXISTS "Allow all operations on frameworks" ON frameworks;
-DROP POLICY IF EXISTS "Allow all operations on grades" ON grades;
-DROP POLICY IF EXISTS "Allow all operations on domains" ON domains;
-DROP POLICY IF EXISTS "Allow all operations on lessons" ON lessons;
+-- Drop existing policies if they exist (conditionally based on table existence)
+DO $$ 
+BEGIN
+  -- Drop policies for subjects
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'subjects') THEN
+    DROP POLICY IF EXISTS "Allow all operations on subjects" ON subjects;
+  END IF;
+  
+  -- Drop policies for frameworks
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'frameworks') THEN
+    DROP POLICY IF EXISTS "Allow all operations on frameworks" ON frameworks;
+  END IF;
+  
+  -- Drop policies for grades
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'grades') THEN
+    DROP POLICY IF EXISTS "Allow all operations on grades" ON grades;
+  END IF;
+  
+  -- Drop policies for old domains table if it still exists
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'domains') THEN
+    DROP POLICY IF EXISTS "Allow all operations on domains" ON domains;
+  END IF;
+  
+  -- Drop policies for lessons
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'lessons') THEN
+    DROP POLICY IF EXISTS "Allow all operations on lessons" ON lessons;
+  END IF;
+END $$;
 
 -- Create policies: Allow public read, admin write (you can adjust based on your auth setup)
 -- For now, allow all operations (you should restrict this based on your admin auth)
