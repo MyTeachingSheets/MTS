@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
   const [typeName, setTypeName] = useState('')
@@ -21,6 +22,21 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
   const [draggedItem, setDraggedItem] = useState(null)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
+  const [dragOverPosition, setDragOverPosition] = useState(null) // 'above' | 'below'
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [openCardMenu, setOpenCardMenu] = useState(null)
+  const [cardMenuPos, setCardMenuPos] = useState({ x: 0, y: 0, id: null })
+
+  // --- Pagination by real DOM height (measurer) ---
+  const [measuredPages, setMeasuredPages] = useState([[]])
+  const measureRootRef = useRef(null)
+
+  const MM_PAGE_HEIGHT = 297
+  const MM_PAGE_PADDING_TOTAL = 14 * 2 // match your visible page padding (mm)
+  const PX_PER_INCH = 96
+  const MM_PER_INCH = 25.4
+  const pxToMm = (px) => (px * MM_PER_INCH) / PX_PER_INCH
 
   // Keep currentPage in range when questions change
   useEffect(() => {
@@ -36,6 +52,57 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
     })
   }, [questionItems, questionTypes, isOpen])
 
+  // Close card menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const onDocClick = (e) => {
+      if (!openCardMenu) return
+      const target = e.target
+      if (target.closest && (target.closest('.card-menu') || target.closest('.dot-btn'))) return
+      setOpenCardMenu(null)
+    }
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpenCardMenu(null)
+    }
+
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('touchstart', onDocClick)
+    document.addEventListener('keydown', onKey)
+
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('touchstart', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [openCardMenu])
+
+  // Close Add Question Type menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (!addMenuOpen) return
+
+    const onDocClick = (e) => {
+      const target = e.target
+      if (target.closest && (target.closest('.add-menu') || target.closest('.add-question-btn'))) return
+      setAddMenuOpen(false)
+    }
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') setAddMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('touchstart', onDocClick)
+    document.addEventListener('keydown', onKey)
+
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('touchstart', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [addMenuOpen])
+
   const QUESTION_TYPE_OPTIONS = [
     { value: 'multiple_choice', label: 'Multiple Choice', hasOptions: true },
     { value: 'short_answer', label: 'Short Answer', hasOptions: false },
@@ -45,7 +112,8 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
     { value: 'matching', label: 'Matching', hasOptions: true }
   ]
 
-  if (!isOpen) return null
+  // Note: we must not return early here because hooks below must run on every render.
+  // The early return will be applied right before the JSX return so hooks remain stable.
 
   const addQuestionType = () => {
     setQuestionTypes([
@@ -67,6 +135,12 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
     ])
   }
 
+  const addQuestionItemOfType = (type) => {
+    const item = { id: Date.now(), type, marks: 1, count: 1, options: hasOptions(type) ? { optionsCount: 4 } : {} }
+    setQuestionItems([...questionItems, item])
+    setAddMenuOpen(false)
+  }
+
   const removeQuestionItem = (id) => {
     setQuestionItems(questionItems.filter(q => q.id !== id))
   }
@@ -76,33 +150,56 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
   }
 
   // Drag-and-drop handlers
-  const handleDragStart = (e, item) => {
+  const handleDragStart = (e, item, index) => {
     setDraggedItem(item)
+    setDragOverIndex(null)
+    setDragOverPosition(null)
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, _item, index) => {
     e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const offsetY = e.clientY - rect.top
+    const position = offsetY > rect.height / 2 ? 'below' : 'above'
+    setDragOverIndex(index)
+    setDragOverPosition(position)
     e.dataTransfer.dropEffect = 'move'
   }
 
-  const handleDrop = (e, targetItem) => {
+  const handleDrop = (e, _targetItem, targetIndex) => {
     e.preventDefault()
-    if (!draggedItem || draggedItem.id === targetItem.id) return
+    if (!draggedItem) return
 
     const draggedIndex = questionItems.findIndex(q => q.id === draggedItem.id)
-    const targetIndex = questionItems.findIndex(q => q.id === targetItem.id)
+    if (draggedIndex === -1) return
 
-    const newItems = [...questionItems]
+    // Calculate new index after removing dragged item
+    let newItems = [...questionItems]
+    // remove dragged
     newItems.splice(draggedIndex, 1)
-    newItems.splice(targetIndex, 0, draggedItem)
+
+    // Adjust targetIndex to account for removal if necessary
+    let adjTargetIndex = targetIndex
+    if (draggedIndex < targetIndex) adjTargetIndex = targetIndex - 1
+
+    const insertIndex = dragOverPosition === 'below' ? adjTargetIndex + 1 : adjTargetIndex
+
+    // Bound insertIndex
+    const boundedIndex = Math.max(0, Math.min(newItems.length, insertIndex))
+
+    newItems.splice(boundedIndex, 0, draggedItem)
 
     setQuestionItems(newItems)
     setDraggedItem(null)
+    setDragOverIndex(null)
+    setDragOverPosition(null)
   }
 
   const handleDragEnd = () => {
     setDraggedItem(null)
+    setDragOverIndex(null)
+    setDragOverPosition(null)
   }
 
   const removeQuestionType = (id) => {
@@ -252,22 +349,87 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
 
   const optionLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
 
-  // Pagination logic for A4 pages
-  const QUESTIONS_PER_PAGE = 8 // Realistic estimate for A4 page with multiple choice questions
-  
-  const paginatePreview = () => {
-    const allQuestions = generatePreview()
-    const pages = []
-    
-    // Split questions into pages
-    for (let i = 0; i < allQuestions.length; i += QUESTIONS_PER_PAGE) {
-      pages.push(allQuestions.slice(i, i + QUESTIONS_PER_PAGE))
-    }
-    
-    return pages.length > 0 ? pages : [[]] // At least one empty page
-  }
+  // DOM-measured pagination: use a hidden, unscaled measurer to compute real heights
+  const recomputePagination = useCallback(() => {
+    if (!measureRootRef.current) return
 
-  const pages = paginatePreview()
+    // Measure header height
+    const headerEl = measureRootRef.current.querySelector('.a4-header')
+    const headerPx = headerEl ? headerEl.getBoundingClientRect().height : 0
+    const headerMm = pxToMm(headerPx)
+
+    // Measure each question height
+    const qEls = Array.from(measureRootRef.current.querySelectorAll('.preview-question'))
+    const allQuestions = generatePreview()
+    const questionsWithHeights = qEls.map((el, idx) => ({
+      ...allQuestions[idx],
+      _hmm: pxToMm(el.getBoundingClientRect().height)
+    }))
+
+    // Read computed gap (row-gap) from the preview-questions container and convert to mm
+    const listEl = measureRootRef.current.querySelector('.preview-questions')
+    const listStyle = listEl ? window.getComputedStyle(listEl) : null
+    const gapPx = listStyle ? parseFloat(listStyle.rowGap || listStyle.gap || '0') : 0
+    const gapMm = pxToMm(gapPx)
+
+    // Space per page (add small safety buffer to avoid rounding/scale clipping)
+    const RESERVED_BOTTOM = 10 // small safety buffer (mm)
+    const SAFETY_BUFFER = 3 // extra rounding buffer (~3mm)
+    const availablePerPage = Math.max(
+      40,
+      MM_PAGE_HEIGHT - MM_PAGE_PADDING_TOTAL - headerMm - RESERVED_BOTTOM - SAFETY_BUFFER
+    )
+
+    // Build pages
+    const pages = []
+    let cur = []
+    let used = 0
+
+    for (const q of questionsWithHeights) {
+      const h = q._hmm
+      const extraGap = cur.length ? gapMm : 0 // gap before every item except the first on a page
+
+      if (h >= availablePerPage) {         // huge block: own page
+        if (cur.length) pages.push(cur)
+        pages.push([q])
+        cur = []
+        used = 0
+        continue
+      }
+
+      if (used + extraGap + h <= availablePerPage) {  // fits current page
+        used += extraGap + h
+        cur.push(q)
+      } else {                             // push to next page
+        pages.push(cur)
+        cur = [q]
+        used = h // first item on a new page has no preceding gap
+      }
+    }
+    if (cur.length) pages.push(cur)
+
+    setMeasuredPages(pages.length ? pages : [[]])
+    setCurrentPage((prev) => Math.min(prev, Math.max(0, (pages.length || 1) - 1)))
+  }, [typeName, estimatedTime, questionItems, questionTypes, addIndividually])
+
+  useLayoutEffect(() => {
+    recomputePagination()
+  }, [recomputePagination])
+
+  useEffect(() => {
+    const ro = new ResizeObserver(() => recomputePagination())
+    if (measureRootRef.current) ro.observe(measureRootRef.current)
+
+    const onResize = () => recomputePagination()
+    window.addEventListener('resize', onResize)
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', onResize)
+    }
+  }, [recomputePagination])
+
+  const pages = measuredPages
   const totalPages = pages.length
   const currentQuestions = pages[currentPage] || []
 
@@ -282,6 +444,8 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
       setCurrentPage(currentPage - 1)
     }
   }
+
+  if (!isOpen) return null
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -333,92 +497,108 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
           <div className="form-section">
             <div className="question-types-list">
               {questionItems.map((qi, idx) => (
-                <div 
-                  key={qi.id} 
-                  className={`question-card ${draggedItem?.id === qi.id ? 'dragging' : ''}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, qi)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, qi)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <div className="question-card-header">
-                    <div className="drag-handle" title="Drag to reorder">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <circle cx="4" cy="4" r="1.5"/>
-                        <circle cx="4" cy="8" r="1.5"/>
-                        <circle cx="4" cy="12" r="1.5"/>
-                        <circle cx="12" cy="4" r="1.5"/>
-                        <circle cx="12" cy="8" r="1.5"/>
-                        <circle cx="12" cy="12" r="1.5"/>
-                      </svg>
-                    </div>
-                    <span className="question-number-badge">{idx + 1}</span>
-                    <select 
-                      className="question-type-select" 
-                      value={qi.type} 
-                      onChange={(e) => updateQuestionItem(qi.id, 'type', e.target.value)}
-                    >
-                      {QUESTION_TYPE_OPTIONS.map(opt => 
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      )}
-                    </select>
-                    <button 
-                      className="remove-btn" 
-                      onClick={() => removeQuestionItem(qi.id)} 
-                      title="Remove"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  
-                  <div className="question-card-body">
-                    <div className="compact-controls">
-                      <div className="control-group">
-                        <label>Count</label>
-                        <input 
-                          type="number" 
-                          className="compact-input" 
-                          value={qi.count || 1} 
-                          onChange={(e) => updateQuestionItem(qi.id, 'count', parseInt(e.target.value) || 1)} 
-                          min="1"
-                          max="100"
-                        />
+                <div key={qi.id} className="question-card-wrapper">
+                  {dragOverIndex === idx && dragOverPosition === 'above' && (
+                    <div className="drop-indicator above" />
+                  )}
+
+                  <div
+                    className={`question-card ${draggedItem?.id === qi.id ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, qi, idx)}
+                    onDragOver={(e) => handleDragOver(e, qi, idx)}
+                    onDrop={(e) => handleDrop(e, qi, idx)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="question-card-header simple">
+                      <span className="question-number-badge small">{idx + 1}</span>
+
+                      <div className="question-type-label" aria-hidden>
+                        {getQuestionTypeLabel(qi.type)}
                       </div>
-                      
-                      <div className="control-group">
-                        <label>Marks</label>
-                        <input 
-                          type="number" 
-                          className="compact-input" 
-                          value={qi.marks} 
-                          onChange={(e) => updateQuestionItem(qi.id, 'marks', parseInt(e.target.value) || 1)} 
-                          min="1"
-                        />
-                      </div>
-                      
-                      {hasOptions(qi.type) && (
-                        <div className="control-group">
-                          <label>Options</label>
-                          <input 
-                            type="number" 
-                            className="compact-input" 
-                            value={qi.options?.optionsCount || 4} 
-                            onChange={(e) => updateQuestionItem(qi.id, 'options', { optionsCount: parseInt(e.target.value) || 4 })} 
-                            min="2"
-                            max="10"
-                          />
-                        </div>
+
+                      {/* three-dot menu button aligned right */}
+                      <button
+                        className="dot-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const nextOpen = openCardMenu === qi.id ? null : qi.id
+                          setOpenCardMenu(nextOpen)
+                          if (nextOpen) {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            // position menu to the right of the button so it appears outside the card
+                            setCardMenuPos({ x: rect.right, y: rect.top, id: qi.id })
+                          }
+                        }}
+                        aria-haspopup="true"
+                        aria-expanded={openCardMenu === qi.id}
+                        title="Options"
+                      >
+                        ⋮
+                      </button>
+
+                      {/* close button to the right of the three-dot, removes this question type */}
+                      <button
+                        className="close-btn"
+                        onClick={(e) => { e.stopPropagation(); removeQuestionItem(qi.id) }}
+                        title="Remove question type"
+                        aria-label="Remove question type"
+                      >
+                        ×
+                      </button>
+
+                      {openCardMenu === qi.id && typeof document !== 'undefined' && createPortal(
+                        <div
+                          className="card-menu"
+                          role="menu"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ position: 'fixed', top: (cardMenuPos.y || 0) + 8 + 'px', left: (cardMenuPos.x || 0) + 8 + 'px' }}
+                        >
+                          <label className="card-menu-row">
+                            <span>Count</span>
+                            <input type="number" min="1" max="100" value={qi.count || 1} onChange={(e) => updateQuestionItem(qi.id, 'count', parseInt(e.target.value) || 1)} />
+                          </label>
+
+                          <label className="card-menu-row">
+                            <span>Marks</span>
+                            <input type="number" min="1" value={qi.marks} onChange={(e) => updateQuestionItem(qi.id, 'marks', parseInt(e.target.value) || 1)} />
+                          </label>
+
+                          {hasOptions(qi.type) && (
+                            <label className="card-menu-row">
+                              <span>Options</span>
+                              <input type="number" min="2" max="10" value={qi.options?.optionsCount || 4} onChange={(e) => updateQuestionItem(qi.id, 'options', { optionsCount: parseInt(e.target.value) || 4 })} />
+                            </label>
+                          )}
+
+                          
+                        </div>,
+                        document.body
                       )}
                     </div>
                   </div>
+
+                  {dragOverIndex === idx && dragOverPosition === 'below' && (
+                    <div className="drop-indicator below" />
+                  )}
                 </div>
               ))}
 
-              <button className="add-question-btn" onClick={addQuestionItem}>
-                <span className="plus-icon">+</span>
-                Add question type
-              </button>
+              <div className="add-menu-wrapper">
+                <button className="add-question-btn" onClick={() => setAddMenuOpen(!addMenuOpen)} aria-haspopup="true" aria-expanded={addMenuOpen}>
+                  <span className="plus-icon">+</span>
+                  Add question type
+                </button>
+                {addMenuOpen && (
+                  <div className="add-menu" role="menu">
+                    {QUESTION_TYPE_OPTIONS.map(opt => (
+                      <button key={opt.value} className="add-menu-item" onClick={() => addQuestionItemOfType(opt.value)} role="menuitem">
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -525,6 +705,80 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
         </div>
 
         {/* footer removed - actions moved to header */}
+
+        {/* HIDDEN MEASURER (1:1 scale, invisible) - used to compute real heights for pagination */}
+        <div
+          ref={measureRootRef}
+          style={{
+            position: 'absolute',
+            visibility: 'hidden',
+            pointerEvents: 'none',
+            top: 0,
+            left: 0,
+            width: '210mm',
+            height: 'auto',
+            padding: '14mm',
+            fontFamily: "'Times New Roman', Times, serif",
+            fontSize: '11pt',
+            lineHeight: 1.5,
+            // ensure the measurer uses the same stacking so measurements match
+            boxSizing: 'border-box'
+          }}
+        >
+          <div className="a4-header">
+            <h4>{typeName || '[Worksheet Name]'}</h4>
+            <div className="a4-meta">
+              <span>Time: {estimatedTime} min</span>
+              <span>Total: {calculateTotalMarks()} marks</span>
+            </div>
+          </div>
+
+          <div className="preview-questions" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {generatePreview().map((q) => (
+              <div key={`m-${q.number}`} className="preview-question" style={{ padding: '8px 0' }}>
+                <div className="preview-question-header">
+                  <span className="preview-q-number">{q.number}.</span>
+                  <span className="preview-q-text">{q.text}</span>
+                  <span className="preview-q-marks">({q.marks})</span>
+                </div>
+
+                {hasOptions(q.type) && (
+                  <div className="preview-options">
+                    {Array.from({ length: q.optionsCount }).map((_, i) => (
+                      <div key={i} className="preview-option">
+                        <span className="preview-option-letter">{String.fromCharCode(97 + i)}.</span>
+                        <span className="preview-option-text">Option {i + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {q.type === 'short_answer' && (
+                  <div className="preview-answer-space"><div className="preview-answer-line" /></div>
+                )}
+
+                {q.type === 'essay' && (
+                  <div className="preview-answer-space">
+                    <div className="preview-answer-line" />
+                    <div className="preview-answer-line" />
+                    <div className="preview-answer-line" />
+                  </div>
+                )}
+
+                {q.type === 'fill_blank' && (
+                  <div className="preview-answer-space"><div className="preview-answer-line short" /></div>
+                )}
+
+                {q.type === 'true_false' && (
+                  <div className="preview-options">
+                    <div className="preview-option"><span className="preview-option-letter">a.</span><span className="preview-option-text">True</span></div>
+                    <div className="preview-option"><span className="preview-option-letter">b.</span><span className="preview-option-text">False</span></div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <style jsx>{`
@@ -562,8 +816,8 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
 
         .modal-close-btn {
           position: absolute;
-          top: 20px;
-          right: 20px;
+          top: 18px;
+          right: 28px; /* nudge slightly inward while header reserves space */
           width: 36px;
           height: 36px;
           border-radius: 50%;
@@ -585,7 +839,7 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
         }
 
         .modal-header {
-          padding: 32px 70px 24px 32px;
+          padding: 24px 80px 16px 20px; /* reserve right space so close button doesn't overlap actions */
           border-bottom: 1px solid var(--border-light);
           display: flex;
           align-items: center;
@@ -700,16 +954,16 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
 
         .two-column-layout {
           display: grid;
-          grid-template-columns: 400px 1fr;
+          grid-template-columns: 320px 1fr; /* slightly narrower left column */
           height: calc(90vh - 140px);
           overflow: hidden;
         }
 
         .form-column {
-          padding: 24px;
+          padding: 8px 14px 20px 14px; /* reduce top and side padding so content starts near header */
           overflow-y: auto;
-          border-right: 1px solid var(--border-light);
-          background: #fafafa;
+          border-right: 1px solid rgba(0,0,0,0.06);
+          background: linear-gradient(180deg, #f8f9fa, #ffffff);
         }
 
         .preview-column {
@@ -725,7 +979,7 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
           display: grid;
           grid-template-columns: 40px 1fr 40px;
           align-items: center;
-          margin-bottom: 8px;
+          margin-bottom: 0; /* remove extra top space so preview fills more */
           gap: 12px;
         }
 
@@ -754,6 +1008,10 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
           align-items: center;
           justify-content: center;
           transition: all 0.2s;
+          position: absolute; /* float over preview */
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 5;
         }
 
         .nav-btn:hover:not(:disabled) {
@@ -769,34 +1027,34 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
         }
 
         .nav-btn-left {
-          justify-self: start;
+          left: 18px;
         }
 
         .nav-btn-right {
-          justify-self: end;
+          right: 18px;
         }
 
         .a4-preview-container {
           flex: 1;
           display: flex;
-          align-items: center;
+          align-items: flex-start; /* align to top so spacing is consistent */
           justify-content: center;
           overflow: hidden;
-          padding: 12px;
+          padding-top: 18px; /* add gap between header and paper */
         }
 
         .a4-page {
           width: 210mm;
           height: 297mm;
           background: white;
-          box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
-          padding: 20mm;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+          padding: 14mm;
           font-family: 'Times New Roman', Times, serif;
           font-size: 11pt;
           line-height: 1.5;
           overflow: hidden;
-          transform: scale(0.5);
-          transform-origin: center;
+          transform: scale(0.58);
+          transform-origin: top center; /* keep paper anchored to top when scaled */
           border-radius: 4px;
         }
 
@@ -841,7 +1099,7 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
         }
 
         .form-section {
-          margin-bottom: 32px;
+          margin: 0 0 16px 0; /* remove top margin so sections start immediately */
         }
 
         .form-section h3 {
@@ -879,44 +1137,59 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
         .question-types-list {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 10px;
+          margin-top: 0; /* ensure list starts at top of section */
         }
 
         /* Modern minimal question card */
         .question-card {
           background: white;
-          border: 1px solid #e0e0e0;
-          border-radius: 6px;
+          border: 1px solid rgba(0,0,0,0.06);
+          border-radius: 12px;
           overflow: hidden;
           transition: all 0.2s ease;
           cursor: grab;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
 
         .question-card:hover {
-          border-color: var(--primary-navy);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          border-color: rgba(0,51,102,0.15);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+          transform: translateY(-1px);
         }
 
         .question-card.dragging {
-          opacity: 0.5;
+          opacity: 0.6;
           cursor: grabbing;
+          transform: scale(1.02);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         }
 
         .question-card-header {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 12px;
-          background: #fafafa;
-          border-bottom: 1px solid #e0e0e0;
+          gap: 10px;
+          padding: 14px 16px;
+          background: linear-gradient(180deg, #fafbfc, #ffffff);
+          border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+
+        .question-card-header.simple {
+          position: relative;
         }
 
         .drag-handle {
           display: flex;
           align-items: center;
-          color: #999;
+          color: rgba(0,0,0,0.15);
           cursor: grab;
           padding: 2px;
+          transition: color 0.2s;
+          opacity: 0;
+        }
+
+        .question-card:hover .drag-handle {
+          opacity: 1;
         }
 
         .drag-handle:hover {
@@ -927,123 +1200,351 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-width: 24px;
-          height: 24px;
-          padding: 0 6px;
-          background: var(--primary-navy);
+          min-width: 28px;
+          height: 28px;
+          padding: 0 8px;
+          background: linear-gradient(135deg, var(--primary-navy), #0066cc);
           color: white;
-          border-radius: 4px;
-          font-weight: 600;
-          font-size: 0.8rem;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 0.85rem;
           flex-shrink: 0;
+          box-shadow: 0 2px 6px rgba(0,51,102,0.15);
+        }
+
+        .question-number-badge.small {
+          min-width: 22px;
+          height: 22px;
+          padding: 0 6px;
+          border-radius: 6px;
+          font-size: 0.8rem;
         }
 
         .question-type-select {
           flex: 1;
           border: none;
           background: transparent;
-          font-size: 0.9rem;
-          font-weight: 500;
+          font-size: 0.95rem;
+          font-weight: 600;
           color: var(--text-primary);
-          padding: 4px 8px;
+          padding: 6px 10px;
           outline: none;
           cursor: pointer;
+          border-radius: 6px;
+          transition: background 0.15s;
+        }
+
+        .question-type-select:hover {
+          background: rgba(0,0,0,0.02);
         }
 
         .question-type-select:focus {
-          background: white;
-          border-radius: 4px;
+          background: rgba(0,51,102,0.04);
+          outline: 2px solid rgba(0,51,102,0.1);
+        }
+
+        .question-type-label {
+          background: rgba(0,0,0,0.03);
+          padding: 6px 10px;
+          border-radius: 8px;
+          font-weight: 600;
+          color: var(--text-primary);
+          font-size: 0.95rem;
         }
 
         .remove-btn {
-          width: 24px;
-          height: 24px;
+          width: 28px;
+          height: 28px;
           border: none;
           background: transparent;
-          color: #999;
-          font-size: 1.4rem;
+          color: rgba(0,0,0,0.25);
+          font-size: 1.5rem;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 4px;
-          transition: all 0.2s;
+          border-radius: 6px;
+          transition: all 0.15s;
           padding: 0;
           line-height: 1;
         }
 
         .remove-btn:hover {
-          background: #fee;
-          color: #c00;
+          background: #ffebee;
+          color: #d32f2f;
+          transform: scale(1.1);
         }
 
         .question-card-body {
-          padding: 12px;
+          padding: 14px 16px;
         }
 
         .compact-controls {
           display: flex;
-          gap: 8px;
+          gap: 10px;
         }
 
         .control-group {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
           flex: 1;
         }
 
         .control-group label {
-          font-size: 0.75rem;
-          color: #666;
-          font-weight: 500;
+          font-size: 0.7rem;
+          color: rgba(0,0,0,0.5);
+          font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.8px;
         }
 
         .compact-input {
           width: 100%;
-          border: 1px solid #e0e0e0;
-          border-radius: 4px;
+          border: 1px solid rgba(0,0,0,0.08);
+          border-radius: 8px;
+          padding: 8px 10px;
+          font-size: 0.95rem;
+          text-align: center;
+          font-weight: 700;
+          outline: none;
+          transition: all 0.15s;
+          background: #fafbfc;
+        }
+
+        .compact-input.inline {
+          width: 56px;
           padding: 6px 8px;
           font-size: 0.9rem;
-          text-align: center;
-          font-weight: 600;
-          outline: none;
-          transition: border-color 0.2s;
+          margin-left: 6px;
+        }
+
+        .compact-input.inline.small {
+          width: 48px;
+          padding: 6px 8px;
+          font-size: 0.88rem;
+        }
+
+        .inline-controls {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-left: 8px;
+        }
+
+        .question-card-header.simple {
+          padding: 10px 12px;
+        }
+
+        .compact-input:hover {
+          border-color: rgba(0,51,102,0.2);
+          background: white;
         }
 
         .compact-input:focus {
           border-color: var(--primary-navy);
+          background: white;
+          box-shadow: 0 0 0 3px rgba(0,51,102,0.08);
+        }
+
+        .question-card-wrapper {
+          position: relative;
+        }
+
+        .drop-indicator {
+          height: 8px;
+          margin: 6px 0;
+          transition: all 0.12s ease;
+        }
+
+        .drop-indicator.above::after,
+        .drop-indicator.below::after {
+          content: '';
+          display: block;
+          height: 2px;
+          background: var(--primary-navy);
+          width: 100%;
+          border-radius: 2px;
+          opacity: 0.9;
         }
 
         .add-question-btn {
           width: 100%;
-          padding: 12px;
-          border: 2px dashed #d0d0d0;
+          padding: 8px 10px;
+          border: 1px dashed rgba(0,0,0,0.08);
           background: transparent;
-          border-radius: 6px;
-          color: #666;
+          border-radius: 8px;
+          color: var(--text-secondary);
           font-size: 0.9rem;
-          font-weight: 500;
+          font-weight: 600;
           cursor: pointer;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
-          transition: all 0.2s;
+          transition: all 0.12s ease-in-out;
         }
 
         .add-question-btn:hover {
-          border-color: var(--primary-navy);
+          border-color: rgba(0,0,0,0.12);
+          color: var(--text-primary);
+          background: rgba(0,0,0,0.02);
+        }
+
+        .plus-icon {
+          width: 20px;
+          height: 20px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
           color: var(--primary-navy);
-          background: rgba(0, 51, 102, 0.02);
+          border-radius: 4px;
+          font-weight: 700;
+        }
+
+        .add-question-btn .chev {
+          display: inline-block;
+          margin-left: 6px;
+          width: 10px;
+          height: 10px;
+          border-right: 2px solid rgba(0,0,0,0.35);
+          border-bottom: 2px solid rgba(0,0,0,0.35);
+          transform: rotate(45deg);
+          opacity: 0.7;
         }
 
         .plus-icon {
           font-size: 1.2rem;
           font-weight: 700;
         }
+
+        .add-menu-wrapper {
+          position: relative;
+          display: inline-block;
+        }
+
+        .add-menu {
+          position: absolute;
+          top: 48px;
+          left: 0;
+          background: white;
+          border: 1px solid rgba(15,23,42,0.06);
+          box-shadow: 0 10px 30px rgba(20,30,50,0.08);
+          border-radius: 12px;
+          padding: 8px;
+          z-index: 40;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 200px;
+        }
+
+        .add-menu-item {
+          background: transparent;
+          border: none;
+          text-align: left;
+          padding: 8px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .add-menu-item::before {
+          content: '';
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          background: rgba(0,0,0,0.06);
+          border-radius: 3px;
+          flex-shrink: 0;
+        }
+
+        .add-menu-item:hover {
+          background: rgba(0,51,102,0.06);
+          transform: translateX(4px);
+        }
+
+        .add-menu-item:focus {
+          outline: 2px solid rgba(0,51,102,0.12);
+        }
+
+        .dot-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          background: transparent;
+          font-size: 1.1rem;
+          color: rgba(0,0,0,0.6);
+          cursor: pointer;
+          position: absolute;
+          right: 8px; /* keep the button close to the card edge */
+          top: 50%;
+          transform: translateY(-50%);
+        }
+
+        .close-btn {
+          position: absolute;
+          right: 44px; /* place to the left of dot-btn */
+          top: 50%;
+          transform: translateY(-50%);
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          border: none;
+          background: transparent;
+          color: rgba(200,40,40,0.9);
+          font-weight: 700;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .close-btn:hover {
+          background: rgba(200,40,40,0.06);
+        }
+
+        .dot-btn:hover {
+          background: rgba(0,0,0,0.03);
+          color: rgba(0,0,0,0.8);
+        }
+
+        .card-menu {
+          background: white;
+          border: 1px solid rgba(0,0,0,0.06);
+          border-radius: 10px;
+          padding: 8px;
+          box-shadow: 0 16px 40px rgba(0,0,0,0.12);
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          z-index: 9999;
+          min-width: 180px;
+        }
+
+        .card-menu-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .card-menu-row input {
+          width: 72px;
+          padding: 6px 8px;
+          border: 1px solid rgba(0,0,0,0.08);
+          border-radius: 6px;
+        }
+
+        /* .card-menu-actions removed to avoid extra trailing space in the card menu */
 
         .input-sm {
           padding: 8px 12px;
@@ -1280,11 +1781,11 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
 
         @media (max-width: 1200px) {
           .two-column-layout {
-            grid-template-columns: 350px 1fr;
+            grid-template-columns: 320px 1fr;
           }
 
           .a4-page {
-            transform: scale(0.4);
+            transform: scale(0.48);
           }
         }
 
@@ -1305,7 +1806,7 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
           }
 
           .a4-page {
-            transform: scale(0.35);
+            transform: scale(0.44);
           }
         }
 
