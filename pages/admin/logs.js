@@ -52,6 +52,9 @@ export default function LogsPage({ logs = [], error = null }) {
         <div className="admin-logs-header">
           <h1>Logs</h1>
           <div className="admin-logs-actions">
+            <button className="btn btn-ghost" onClick={() => (window.location.href = '/admin/settings')}>
+              Settings
+            </button>
             <button className="btn btn-ghost" onClick={() => (window.location.href = '/')}>
               Home
             </button>

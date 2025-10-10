@@ -27,52 +27,10 @@ export default function AIGeneratePage(){
   const [worksheetTypes, setWorksheetTypes] = useState([])
   const [loadingTypes, setLoadingTypes] = useState(true)
 
-  // Expanded dropdown options
-  const SUBJECTS = [
-    'Mathematics',
-    'English Language Arts',
-    'Science',
-    'Social Studies',
-    'Reading',
-    'Writing',
-    'Grammar',
-    'Vocabulary',
-    'Spelling',
-    'History',
-    'Geography',
-    'Biology',
-    'Chemistry',
-    'Physics',
-    'Art',
-    'Music',
-    'Physical Education'
-  ]
-  
-  const STANDARDS = [
-    'Common Core State Standards (CCSS)',
-    'Next Generation Science Standards (NGSS)',
-    'State Standards',
-    'International Baccalaureate (IB)',
-    'Cambridge International',
-    'Custom/Other'
-  ]
-  
-  const GRADES = [
-    'Pre-K',
-    'Kindergarten',
-    'Grade 1',
-    'Grade 2',
-    'Grade 3',
-    'Grade 4',
-    'Grade 5',
-    'Grade 6',
-    'Grade 7',
-    'Grade 8',
-    'Grade 9',
-    'Grade 10',
-    'Grade 11',
-    'Grade 12'
-  ]
+  // Dynamic dropdown options loaded from admin settings
+  const [subjects, setSubjects] = useState([])
+  const [standards, setStandards] = useState([])
+  const [grades, setGrades] = useState([])
   
   const DOMAINS = {
     'Mathematics': ['Numbers & Operations', 'Algebra', 'Geometry', 'Measurement', 'Data Analysis', 'Probability'],
@@ -83,10 +41,29 @@ export default function AIGeneratePage(){
     'default': ['General']
   }
 
-  // Load worksheet types from database
+  // Load worksheet types and admin settings
   useEffect(() => {
     loadWorksheetTypes()
+    loadAdminSettings()
   }, [])
+
+  const loadAdminSettings = async () => {
+    try {
+      const res = await fetch('/api/admin-settings')
+      if (res.ok) {
+        const data = await res.json()
+        setSubjects(data.subjects || [])
+        setGrades(data.grades || [])
+        setStandards(data.standards || [])
+      }
+    } catch (err) {
+      console.error('Failed to load admin settings:', err)
+      // Fallback to defaults if API fails
+      setSubjects(['Mathematics', 'Science', 'English Language Arts'])
+      setGrades(['Grade 1', 'Grade 2', 'Grade 3'])
+      setStandards(['Common Core State Standards (CCSS)'])
+    }
+  }
 
   const loadWorksheetTypes = async () => {
     setLoadingTypes(true)
@@ -305,7 +282,7 @@ export default function AIGeneratePage(){
             <label>Subject *</label>
             <select className="input-text" value={subject} onChange={e=>{ setSubject(e.target.value); setDomain('') }}>
               <option value="">Select</option>
-              {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+              {subjects.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
@@ -313,7 +290,7 @@ export default function AIGeneratePage(){
             <label>Grade *</label>
             <select className="input-text" value={grade} onChange={e=>setGrade(e.target.value)}>
               <option value="">Select</option>
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+              {grades.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
 
@@ -329,7 +306,7 @@ export default function AIGeneratePage(){
             <label>Standard</label>
             <select className="input-text" value={standard} onChange={e=>setStandard(e.target.value)}>
               <option value="">Select</option>
-              {STANDARDS.map(s => <option key={s} value={s}>{s}</option>)}
+              {standards.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
