@@ -123,8 +123,8 @@ VALUES (
   'my_custom',                    -- Unique name (lowercase, no spaces)
   'My Custom Worksheet Generator', -- Display name
   'Uses my custom prompt created in OpenAI platform',
-  'asst_YOUR_ASSISTANT_ID_HERE',  -- ⚠️ Replace with your actual Assistant ID
-  'gpt-4o',                       -- Model (matches your assistant settings)
+  'asst_pmpt_68e96f3b0d70819097e0338bec7f3d75059d1929c90daf37',  -- ⚠️ Replace with your actual Assistant ID
+  'gpt-4.1-nano',                       -- Model (matches your assistant settings)
   0.7,                            -- Temperature (0.0-2.0)
   'json_object',                  -- Response format
   true,                           -- Is active
