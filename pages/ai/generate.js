@@ -216,22 +216,36 @@ export default function AIGeneratePage(){
     
     setGenerating(true)
     try{
-      // Simulate AI generation delay
-      await new Promise(r=>setTimeout(r,1500))
+      // Call the OpenAI API endpoint
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subject: selectedSubject.name,
+          framework: selectedFramework?.name,
+          grade: selectedGrade.name,
+          lesson: selectedLesson?.name,
+          lessonDescription: selectedLesson?.description,
+          worksheetType: worksheetTypes.find(t => t.id === worksheetType || t.name === worksheetType)?.name || worksheetType,
+          customInstructions: prompt
+        })
+      })
 
-      // Create a mock worksheet entry based on selections and prompt
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Failed to generate worksheet')
+      }
+
+      // Create worksheet entry with AI-generated content
       const id = Date.now()
-      const titleParts = []
-      if (selectedGrade) titleParts.push(selectedGrade.name)
-      if (selectedSubject) titleParts.push(selectedSubject.name)
-      if (selectedLesson) titleParts.push(selectedLesson.name)
-      const title = titleParts.join(' - ') + ` Worksheet`
-
       const selectedType = worksheetTypes.find(t => t.id === worksheetType || t.name === worksheetType)
 
       const newWorksheet = {
         id,
-        title,
+        title: data.worksheet.title,
         subject: selectedSubject?.name || '—',
         standard: selectedFramework?.name || '—',
         grade: selectedGrade?.name || '—',
@@ -241,19 +255,15 @@ export default function AIGeneratePage(){
         status: 'draft',
         thumbnailUploaded: false,
         createdAt: new Date().toISOString(),
-        // Mock content - in real implementation, this would come from AI
+        // AI-generated content from OpenAI
         content: {
           version: '1.0',
-          sections: [
-            {
-              id: 'section_1',
-              title: 'Section 1',
-              type: 'questions',
-              questions: generateMockQuestions(10)
-            }
-          ],
-          totalMarks: 20,
-          estimatedTime: 30
+          ...data.worksheet,
+          aiMetadata: {
+            model: data.metadata?.model,
+            tokensUsed: data.metadata?.tokensUsed,
+            generatedAt: new Date().toISOString()
+          }
         }
       }
 
@@ -261,6 +271,9 @@ export default function AIGeneratePage(){
       
       // Clear prompt after generation
       setPrompt('')
+      
+      // Show success message
+      alert('Worksheet generated successfully!')
     }catch(err){
       console.error('Generate failed', err)
       alert('Failed to generate: ' + (err?.message || err))
