@@ -19,9 +19,10 @@ export default function AdminSettings({ initialSubjects }) {
   const [selectedGrade, setSelectedGrade] = useState(null)
   const [newGrade, setNewGrade] = useState('')
   
-  // Domains (level 4 - filtered by grade)
-  const [domains, setDomains] = useState([])
-  const [newDomain, setNewDomain] = useState('')
+  // Lessons (level 4 - filtered by grade)
+  const [lessons, setLessons] = useState([])
+  const [newLesson, setNewLesson] = useState('')
+  const [newLessonDescription, setNewLessonDescription] = useState('')
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,13 +35,13 @@ export default function AdminSettings({ initialSubjects }) {
       setSelectedFramework(null)
       setSelectedGrade(null)
       setGrades([])
-      setDomains([])
+      setLessons([])
     } else {
       setFrameworks([])
       setSelectedFramework(null)
       setSelectedGrade(null)
       setGrades([])
-      setDomains([])
+      setLessons([])
     }
   }, [selectedSubject])
 
@@ -49,20 +50,20 @@ export default function AdminSettings({ initialSubjects }) {
     if (selectedFramework) {
       loadGrades(selectedFramework.id)
       setSelectedGrade(null)
-      setDomains([])
+      setLessons([])
     } else {
       setGrades([])
       setSelectedGrade(null)
-      setDomains([])
+      setLessons([])
     }
   }, [selectedFramework])
 
-  // Load domains when grade is selected
+  // Load lessons when grade is selected
   useEffect(() => {
     if (selectedGrade) {
-      loadDomains(selectedGrade.id)
+      loadLessons(selectedGrade.id)
     } else {
-      setDomains([])
+      setLessons([])
     }
   }, [selectedGrade])
 
@@ -96,22 +97,22 @@ export default function AdminSettings({ initialSubjects }) {
     }
   }
 
-  const loadDomains = async (gradeId) => {
+  const loadLessons = async (gradeId) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin-settings?type=domains&parent_id=${gradeId}`)
+      const res = await fetch(`/api/admin-settings?type=lessons&parent_id=${gradeId}`)
       if (res.ok) {
         const data = await res.json()
-        setDomains(data.domains || [])
+        setLessons(data.lessons || [])
       }
     } catch (err) {
-      console.error('Failed to load domains:', err)
+      console.error('Failed to load lessons:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const addItem = async (type, value, parentId = null) => {
+  const addItem = async (type, value, parentId = null, description = '') => {
     if (!value.trim()) return
 
     setLoading(true)
@@ -122,7 +123,7 @@ export default function AdminSettings({ initialSubjects }) {
       const res = await fetch('/api/admin-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', type, value: value.trim(), parent_id: parentId })
+        body: JSON.stringify({ action: 'add', type, value: value.trim(), parent_id: parentId, description })
       })
 
       if (res.ok) {
@@ -143,9 +144,10 @@ export default function AdminSettings({ initialSubjects }) {
         } else if (type === 'grade' && selectedFramework) {
           loadGrades(selectedFramework.id)
           setNewGrade('')
-        } else if (type === 'domain' && selectedGrade) {
-          loadDomains(selectedGrade.id)
-          setNewDomain('')
+        } else if (type === 'lesson' && selectedGrade) {
+          loadLessons(selectedGrade.id)
+          setNewLesson('')
+          setNewLessonDescription('')
         }
 
         setTimeout(() => setSuccess(''), 3000)
@@ -195,8 +197,8 @@ export default function AdminSettings({ initialSubjects }) {
           if (selectedGrade?.id === id) {
             setSelectedGrade(null)
           }
-        } else if (type === 'domain' && selectedGrade) {
-          loadDomains(selectedGrade.id)
+        } else if (type === 'lesson' && selectedGrade) {
+          loadLessons(selectedGrade.id)
         }
       } else {
         const data = await res.json()
@@ -321,30 +323,44 @@ export default function AdminSettings({ initialSubjects }) {
           </div>
         )}
 
-        {/* Level 4: Domains */}
+        {/* Level 4: Lessons */}
         {selectedGrade && (
           <div className="hierarchy-level">
-            <h2>4. Domains for Grade "{selectedGrade.name}"</h2>
-            <div className="add-section">
+            <h2>4. Lessons for Grade "{selectedGrade.name}"</h2>
+            <div className="add-section-with-description">
               <input
                 type="text"
-                value={newDomain}
-                onChange={(e) => setNewDomain(e.target.value)}
-                placeholder="Add domain"
-                onKeyDown={(e) => e.key === 'Enter' && addItem('domain', newDomain, selectedGrade.id)}
+                value={newLesson}
+                onChange={(e) => setNewLesson(e.target.value)}
+                placeholder="Lesson name"
+                className="lesson-name-input"
               />
-              <button onClick={() => addItem('domain', newDomain, selectedGrade.id)} disabled={loading || !newDomain.trim()}>
+              <textarea
+                value={newLessonDescription}
+                onChange={(e) => setNewLessonDescription(e.target.value)}
+                placeholder="Lesson description (optional)"
+                className="lesson-description-input"
+                rows="2"
+              />
+              <button 
+                onClick={() => addItem('lesson', newLesson, selectedGrade.id, newLessonDescription)} 
+                disabled={loading || !newLesson.trim()}
+                className="add-lesson-btn"
+              >
                 Add
               </button>
             </div>
             <div className="items-list">
-              {domains.map((domain) => (
-                <div key={domain.id} className="item">
-                  <span>{domain.name}</span>
-                  <button onClick={() => deleteItem('domain', domain.id)} className="delete-btn">×</button>
+              {lessons.map((lesson) => (
+                <div key={lesson.id} className="item lesson-item">
+                  <div className="lesson-content">
+                    <span className="lesson-name">{lesson.name}</span>
+                    {lesson.description && <p className="lesson-description">{lesson.description}</p>}
+                  </div>
+                  <button onClick={() => deleteItem('lesson', lesson.id)} className="delete-btn">×</button>
                 </div>
               ))}
-              {domains.length === 0 && <div className="empty-state">No domains yet. Add one above.</div>}
+              {lessons.length === 0 && <div className="empty-state">No lessons yet. Add one above.</div>}
             </div>
           </div>
         )}
@@ -464,6 +480,50 @@ export default function AdminSettings({ initialSubjects }) {
           cursor: not-allowed;
         }
 
+        .add-section-with-description {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .lesson-name-input {
+          padding: 8px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 4px;
+          font-size: 0.9rem;
+        }
+
+        .lesson-description-input {
+          padding: 8px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 4px;
+          font-size: 0.85rem;
+          font-family: inherit;
+          resize: vertical;
+        }
+
+        .add-lesson-btn {
+          padding: 8px 16px;
+          background: var(--primary-color);
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          transition: all 0.2s;
+          align-self: flex-start;
+        }
+
+        .add-lesson-btn:hover:not(:disabled) {
+          background: var(--primary-hover);
+        }
+
+        .add-lesson-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         .items-list {
           display: flex;
           flex-direction: column;
@@ -497,6 +557,40 @@ export default function AdminSettings({ initialSubjects }) {
           flex: 1;
           font-size: 0.9rem;
           color: var(--text-primary);
+        }
+
+        .lesson-item {
+          flex-direction: column;
+          align-items: flex-start;
+          padding: 12px;
+          position: relative;
+        }
+
+        .lesson-content {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding-right: 30px;
+        }
+
+        .lesson-name {
+          font-weight: 500;
+          font-size: 0.95rem;
+          color: var(--text-primary);
+        }
+
+        .lesson-description {
+          margin: 0;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          line-height: 1.4;
+        }
+
+        .lesson-item .delete-btn {
+          position: absolute;
+          top: 12px;
+          right: 12px;
         }
 
         .delete-btn {

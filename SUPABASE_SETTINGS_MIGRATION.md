@@ -1,15 +1,15 @@
 # Supabase Settings Migration
 
-This migration creates hierarchical tables for managing subjects, frameworks, grades, and domains in the admin settings.
+This migration creates hierarchical tables for managing subjects, frameworks, grades, and lessons in the admin settings.
 
 ## Database Structure
 
-The hierarchy is: **Subject → Framework → Grade → Domain**
+The hierarchy is: **Subject → Framework → Grade → Lesson**
 
 - **subjects**: Top level (e.g., "Mathematics", "Science")
 - **frameworks**: Linked to subjects (e.g., "Common Core", "NGSS")
 - **grades**: Linked to frameworks (e.g., "K", "1", "2", "3")
-- **domains**: Linked to grades (e.g., "Number & Operations", "Algebra")
+- **lessons**: Linked to grades with descriptions (e.g., "Operations and Algebraic Thinking")
 
 ## How to Run the Migration
 
@@ -55,20 +55,22 @@ The migration includes starter data:
 - **Subjects**: Mathematics, Science, English Language Arts, Social Studies, Reading
 - **Frameworks**: Common Core (Math), NGSS (Science), State Standards
 - **Grades**: K-5 for Common Core Math
-- **Domains**: Grade 3 Math domains (Operations, Number & Operations, Fractions, Measurement, Geometry)
+- **Lessons**: Grade 3 Math lessons with descriptions (Operations and Algebraic Thinking, Number & Operations in Base Ten, Fractions, Measurement and Data, Geometry)
 
 ## How It Works
 
 1. **Admin Settings Page** (`/admin/settings`):
    - Click a subject to view its frameworks
    - Click a framework to view its grades
-   - Click a grade to view its domains
+   - Click a grade to view its lessons
+   - Add lessons with descriptions
    - Add/delete items at each level
 
 2. **AI Generate Page** (`/ai/generate`):
    - Select a subject → see frameworks for that subject
    - Select a framework → see grades for that framework
-   - Select a grade → see domains for that grade
+   - Select a grade → see lessons for that grade (optional)
+   - When a lesson is selected, its description appears below the dropdown
    - Each dropdown filters the next level automatically
 
 ## API Endpoints
@@ -76,8 +78,8 @@ The migration includes starter data:
 ### GET `/api/admin-settings`
 
 Query parameters:
-- `type`: "subjects" | "frameworks" | "grades" | "domains"
-- `parent_id`: UUID of the parent item (required for frameworks, grades, domains)
+- `type`: "subjects" | "frameworks" | "grades" | "lessons"
+- `parent_id`: UUID of the parent item (required for frameworks, grades, lessons)
 
 Examples:
 ```javascript
@@ -90,8 +92,8 @@ fetch('/api/admin-settings?type=frameworks&parent_id=SUBJECT_UUID')
 // Get grades for a specific framework
 fetch('/api/admin-settings?type=grades&parent_id=FRAMEWORK_UUID')
 
-// Get domains for a specific grade
-fetch('/api/admin-settings?type=domains&parent_id=GRADE_UUID')
+// Get lessons for a specific grade (includes descriptions)
+fetch('/api/admin-settings?type=lessons&parent_id=GRADE_UUID')
 ```
 
 ### POST `/api/admin-settings`
@@ -103,9 +105,10 @@ fetch('/api/admin-settings', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     action: 'add',
-    type: 'subject', // or 'framework', 'grade', 'domain'
+    type: 'subject', // or 'framework', 'grade', 'lesson'
     value: 'New Subject Name',
-    parent_id: 'PARENT_UUID', // required for framework, grade, domain
+    parent_id: 'PARENT_UUID', // required for framework, grade, lesson
+    description: 'Optional description', // only for lessons
     display_order: 0 // optional
   })
 })
@@ -118,7 +121,7 @@ fetch('/api/admin-settings', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     action: 'delete',
-    type: 'subject', // or 'framework', 'grade', 'domain'
+    type: 'subject', // or 'framework', 'grade', 'lesson'
     id: 'ITEM_UUID'
   })
 })
@@ -127,9 +130,9 @@ fetch('/api/admin-settings', {
 ## Cascading Deletes
 
 All tables use `ON DELETE CASCADE`, which means:
-- Deleting a subject deletes all its frameworks, grades, and domains
-- Deleting a framework deletes all its grades and domains
-- Deleting a grade deletes all its domains
+- Deleting a subject deletes all its frameworks, grades, and lessons
+- Deleting a framework deletes all its grades and lessons
+- Deleting a grade deletes all its lessons
 
 ## Security
 
@@ -149,7 +152,7 @@ CREATE POLICY "Allow write to admins" ON subjects FOR ALL USING (
 
 ### Tables already exist
 If you see "relation already exists" errors, the tables are already created. You can:
-1. Drop them first: `DROP TABLE IF EXISTS domains, grades, frameworks, subjects CASCADE;`
+1. Drop them first: `DROP TABLE IF EXISTS lessons, grades, frameworks, subjects CASCADE;`
 2. Or skip re-running the migration
 
 ### Permission errors

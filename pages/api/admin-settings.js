@@ -57,24 +57,24 @@ export default async function handler(req, res) {
         return res.status(200).json({ grades: data || [] })
       }
 
-      // Get domains for a specific grade
-      if (type === 'domains' && parent_id) {
+      // Get lessons for a specific grade
+      if (type === 'lessons' && parent_id) {
         const { data, error } = await supabase
-          .from('domains')
+          .from('lessons')
           .select('*')
           .eq('grade_id', parent_id)
           .order('display_order', { ascending: true })
           .order('name', { ascending: true })
         
         if (error) throw error
-        return res.status(200).json({ domains: data || [] })
+        return res.status(200).json({ lessons: data || [] })
       }
 
       return res.status(400).json({ error: 'Invalid query parameters' })
     }
 
     if (req.method === 'POST') {
-      const { action, type, value, parent_id, display_order, id } = req.body
+      const { action, type, value, parent_id, display_order, id, description } = req.body
 
       if (!action || !type) {
         return res.status(400).json({ error: 'Missing required fields' })
@@ -102,10 +102,10 @@ export default async function handler(req, res) {
             .from('grades')
             .insert({ framework_id: parent_id, name: value, display_order: display_order || 0 })
             .select()
-        } else if (type === 'domain' && parent_id) {
+        } else if (type === 'lesson' && parent_id) {
           result = await supabase
-            .from('domains')
-            .insert({ grade_id: parent_id, name: value, display_order: display_order || 0 })
+            .from('lessons')
+            .insert({ grade_id: parent_id, name: value, description: description || '', display_order: display_order || 0 })
             .select()
         } else {
           return res.status(400).json({ error: 'Invalid type or missing parent_id' })
@@ -128,8 +128,8 @@ export default async function handler(req, res) {
           result = await supabase.from('frameworks').delete().eq('id', id)
         } else if (type === 'grade') {
           result = await supabase.from('grades').delete().eq('id', id)
-        } else if (type === 'domain') {
-          result = await supabase.from('domains').delete().eq('id', id)
+        } else if (type === 'lesson') {
+          result = await supabase.from('lessons').delete().eq('id', id)
         } else {
           return res.status(400).json({ error: 'Invalid type' })
         }

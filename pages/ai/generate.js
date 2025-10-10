@@ -12,7 +12,7 @@ export default function AIGeneratePage(){
   const [selectedSubject, setSelectedSubject] = useState(null)
   const [selectedFramework, setSelectedFramework] = useState(null)
   const [selectedGrade, setSelectedGrade] = useState(null)
-  const [selectedDomain, setSelectedDomain] = useState(null)
+  const [selectedLesson, setSelectedLesson] = useState(null)
   const [worksheetType, setWorksheetType] = useState('')
 
   // Generated worksheets list
@@ -32,11 +32,11 @@ export default function AIGeneratePage(){
   const [subjects, setSubjects] = useState([])
   const [frameworks, setFrameworks] = useState([])
   const [grades, setGrades] = useState([])
-  const [domains, setDomains] = useState([])
+  const [lessons, setLessons] = useState([])
   
   const [loadingFrameworks, setLoadingFrameworks] = useState(false)
   const [loadingGrades, setLoadingGrades] = useState(false)
-  const [loadingDomains, setLoadingDomains] = useState(false)
+  const [loadingLessons, setLoadingLessons] = useState(false)
 
   // Load worksheet types and subjects on mount
   useEffect(() => {
@@ -50,17 +50,17 @@ export default function AIGeneratePage(){
       loadFrameworks(selectedSubject.id)
       setSelectedFramework(null)
       setSelectedGrade(null)
-      setSelectedDomain(null)
+      setSelectedLesson(null)
       setFrameworks([])
       setGrades([])
-      setDomains([])
+      setLessons([])
     } else {
       setFrameworks([])
       setSelectedFramework(null)
       setSelectedGrade(null)
-      setSelectedDomain(null)
+      setSelectedLesson(null)
       setGrades([])
-      setDomains([])
+      setLessons([])
     }
   }, [selectedSubject])
 
@@ -69,26 +69,26 @@ export default function AIGeneratePage(){
     if (selectedFramework) {
       loadGrades(selectedFramework.id)
       setSelectedGrade(null)
-      setSelectedDomain(null)
+      setSelectedLesson(null)
       setGrades([])
-      setDomains([])
+      setLessons([])
     } else {
       setGrades([])
       setSelectedGrade(null)
-      setSelectedDomain(null)
-      setDomains([])
+      setSelectedLesson(null)
+      setLessons([])
     }
   }, [selectedFramework])
 
-  // Load domains when grade changes
+  // Load lessons when grade changes
   useEffect(() => {
     if (selectedGrade) {
-      loadDomains(selectedGrade.id)
-      setSelectedDomain(null)
-      setDomains([])
+      loadLessons(selectedGrade.id)
+      setSelectedLesson(null)
+      setLessons([])
     } else {
-      setDomains([])
-      setSelectedDomain(null)
+      setLessons([])
+      setSelectedLesson(null)
     }
   }, [selectedGrade])
 
@@ -134,18 +134,18 @@ export default function AIGeneratePage(){
     }
   }
 
-  const loadDomains = async (gradeId) => {
-    setLoadingDomains(true)
+  const loadLessons = async (gradeId) => {
+    setLoadingLessons(true)
     try {
-      const res = await fetch(`/api/admin-settings?type=domains&parent_id=${gradeId}`)
+      const res = await fetch(`/api/admin-settings?type=lessons&parent_id=${gradeId}`)
       if (res.ok) {
         const data = await res.json()
-        setDomains(data.domains || [])
+        setLessons(data.lessons || [])
       }
     } catch (err) {
-      console.error('Failed to load domains:', err)
+      console.error('Failed to load lessons:', err)
     } finally {
-      setLoadingDomains(false)
+      setLoadingLessons(false)
     }
   }
 
@@ -224,7 +224,7 @@ export default function AIGeneratePage(){
       const titleParts = []
       if (selectedGrade) titleParts.push(selectedGrade.name)
       if (selectedSubject) titleParts.push(selectedSubject.name)
-      if (selectedDomain) titleParts.push(selectedDomain.name)
+      if (selectedLesson) titleParts.push(selectedLesson.name)
       const title = titleParts.join(' - ') + ` Worksheet`
 
       const selectedType = worksheetTypes.find(t => t.id === worksheetType || t.name === worksheetType)
@@ -235,7 +235,7 @@ export default function AIGeneratePage(){
         subject: selectedSubject?.name || '—',
         standard: selectedFramework?.name || '—',
         grade: selectedGrade?.name || '—',
-        domain: selectedDomain?.name || '—',
+        domain: selectedLesson?.name || '—',
         type: selectedType?.name || worksheetType || '—',
         customInstructions: prompt || '',
         status: 'draft',
@@ -410,21 +410,26 @@ export default function AIGeneratePage(){
           </div>
 
           <div className="ai-form-group">
-            <label>Domain (optional)</label>
+            <label>Lesson (optional)</label>
             <select 
               className="input-text" 
-              value={selectedDomain?.id || ''} 
+              value={selectedLesson?.id || ''} 
               onChange={e => {
-                const domain = domains.find(d => d.id === e.target.value)
-                setSelectedDomain(domain || null)
+                const lesson = lessons.find(l => l.id === e.target.value)
+                setSelectedLesson(lesson || null)
               }}
-              disabled={!selectedGrade || loadingDomains}
+              disabled={!selectedGrade || loadingLessons}
             >
               <option value="">
-                {!selectedGrade ? 'Select grade first' : loadingDomains ? 'Loading...' : 'Select (optional)'}
+                {!selectedGrade ? 'Select grade first' : loadingLessons ? 'Loading...' : 'Select (optional)'}
               </option>
-              {domains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {lessons.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
+            {selectedLesson?.description && (
+              <div className="lesson-description-box">
+                <small>{selectedLesson.description}</small>
+              </div>
+            )}
           </div>
 
           <div className="ai-form-group">
@@ -436,11 +441,6 @@ export default function AIGeneratePage(){
               ))}
               <option value="CREATE_NEW" style={{fontWeight:'bold',color:'var(--primary-navy)'}}>Create new</option>
             </select>
-          </div>
-
-          <div className="ai-form-group">
-            <label>Notes</label>
-            <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Optional notes" className="ai-textarea" rows="3" />
           </div>
 
           <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:24}}>
@@ -736,6 +736,20 @@ export default function AIGeneratePage(){
           font-size: 0.9rem;
           font-weight: 600;
           color: var(--text-primary);
+        }
+
+        .lesson-description-box {
+          margin-top: 8px;
+          padding: 10px 12px;
+          background: #f8f9fa;
+          border-left: 3px solid var(--primary-color);
+          border-radius: 4px;
+        }
+
+        .lesson-description-box small {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          line-height: 1.5;
         }
 
         .ai-textarea {
