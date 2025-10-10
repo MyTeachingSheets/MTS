@@ -12,6 +12,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'userId and email are required' })
   }
 
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(userId)) {
+    console.error('Invalid UUID format:', userId)
+    return res.status(400).json({ error: 'Invalid userId format. Expected UUID.' })
+  }
+
   // Use service role key for admin access to bypass RLS
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -54,6 +61,16 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error('Error upserting user:', error)
+      
+      // Check if the error is due to missing table
+      if (error.code === 'PGRST205') {
+        return res.status(500).json({ 
+          error: 'Database table not found', 
+          details: 'The users table does not exist. Please run the database migration: supabase/migrations/create_users_table.sql',
+          code: error.code
+        })
+      }
+      
       return res.status(500).json({ error: 'Failed to store user', details: error.message })
     }
 
