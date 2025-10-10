@@ -954,11 +954,39 @@ export default function AIGeneratePage(){
             border-right: none;
             border-bottom: 1px solid var(--border-light);
             background: white;
+            padding: 16px;
           }
 
           .ai-right-panel {
             margin-left: 0;
-            padding: 20px;
+            width: 100%;
+            height: auto;
+            padding: 0;
+          }
+
+          .ai-results-container {
+            padding: 16px;
+          }
+
+          .worksheets-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+
+          .worksheet-card {
+            width: 100%;
+            max-width: 100%;
+          }
+
+          .worksheet-actions {
+            flex-wrap: wrap;
+          }
+
+          .btn-action {
+            flex: 1 1 calc(50% - 3px);
+            min-width: 100px;
+            font-size: 0.75rem;
+            padding: 8px 6px;
           }
         }
 
@@ -1179,8 +1207,49 @@ export default function AIGeneratePage(){
         }
 
         @media (max-width: 768px) {
-          .worksheets-grid {
-            grid-template-columns: 1fr;
+          .ai-left-panel {
+            padding: 12px;
+          }
+
+          .ai-results-container {
+            padding: 12px;
+          }
+
+          .worksheet-thumbnail {
+            height: 150px;
+          }
+
+          .worksheet-body {
+            padding: 12px;
+          }
+
+          .worksheet-title {
+            font-size: 0.95rem;
+          }
+
+          .btn-action {
+            flex: 1 1 100%;
+            min-width: 100%;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .ai-form-group label {
+            font-size: 0.85rem;
+          }
+
+          .meta-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+          }
+
+          .worksheet-actions {
+            gap: 8px;
+          }
+
+          .btn-action {
+            padding: 10px 12px;
+            font-size: 0.8rem;
           }
         }
       `}</style>
