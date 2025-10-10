@@ -232,10 +232,10 @@ export default function AIGeneratePage(){
       const newWorksheet = {
         id,
         title,
-        subject: subject || '—',
-        standard: standard || '—',
-        grade: grade || '—',
-        domain: domain || '—',
+        subject: selectedSubject?.name || '—',
+        standard: selectedFramework?.name || '—',
+        grade: selectedGrade?.name || '—',
+        domain: selectedDomain?.name || '—',
         type: selectedType?.name || worksheetType || '—',
         customInstructions: prompt || '',
         status: 'draft',
@@ -447,7 +447,7 @@ export default function AIGeneratePage(){
             <button 
               className="btn ai-generate-btn" 
               onClick={handleGenerate} 
-              disabled={generating || !subject || !grade || !worksheetType}
+              disabled={generating || !selectedSubject || !selectedGrade || !worksheetType}
             >
               {generating ? (
                 <>
