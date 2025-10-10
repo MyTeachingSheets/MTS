@@ -233,14 +233,15 @@ export default function AIGeneratePage(){
         })
       })
 
+      // Read response body once as text, then parse
+      const rawText = await response.text()
       let data = null
       try {
-        data = await response.json()
+        data = JSON.parse(rawText)
       } catch (parseErr) {
-        // If response is not JSON, capture raw text for debugging
-        const raw = await response.text()
-        console.error('Non-JSON response from /api/ai/generate:', raw)
-        throw new Error('Non-JSON response from server: ' + raw)
+        // If response is not JSON, log raw text for debugging
+        console.error('Non-JSON response from /api/ai/generate:', rawText)
+        throw new Error('Non-JSON response from server: ' + rawText)
       }
 
       if (!response.ok) {
