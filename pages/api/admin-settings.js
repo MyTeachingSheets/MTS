@@ -9,14 +9,9 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export default async function handler(req, res) {
-  // Check admin authentication using the same cookie as other admin endpoints
-  const token = req.cookies?.['log_admin_token'] || ''
-  if (!process.env.LOG_ADMIN_TOKEN || token !== process.env.LOG_ADMIN_TOKEN) {
-    return res.status(401).json({ error: 'Not authenticated' })
-  }
-
   try {
     if (req.method === 'GET') {
+      // GET requests are public - no authentication required
       const { type, parent_id } = req.query
 
       // Get subjects (top level)
@@ -74,6 +69,12 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      // Check admin authentication for POST operations (add/delete)
+      const token = req.cookies?.['log_admin_token'] || ''
+      if (!process.env.LOG_ADMIN_TOKEN || token !== process.env.LOG_ADMIN_TOKEN) {
+        return res.status(401).json({ error: 'Not authenticated' })
+      }
+
       const { action, type, value, parent_id, display_order, id, description } = req.body
 
       if (!action || !type) {
