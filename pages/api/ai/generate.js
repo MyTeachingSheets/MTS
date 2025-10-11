@@ -114,28 +114,54 @@ export default async function handler(req, res) {
     if (usePromptId) {
       console.log('Using OpenAI Published Prompt ID:', usePromptId)
       console.log('Fetching prompt configuration from OpenAI dashboard...')
-      
+
+      // Basic validation: prompt IDs from OpenAI stored prompts typically start with 'pmpt_'
+      if (typeof usePromptId !== 'string' || !usePromptId.startsWith('pmpt_')) {
+        console.warn('Invalid promptId format:', usePromptId)
+        return res.status(400).json({
+          error: 'Invalid promptId format',
+          details: 'Stored prompt IDs should start with "pmpt_"'
+        })
+      }
+
       // Use Responses API with prompt reference - OpenAI handles prompt content
       // This is the RECOMMENDED way to use published prompts
-      const response = await openai.responses.create({
-        prompt: {
-          id: usePromptId,  // Your published prompt ID
-          version: '1'      // Use version 1 (or specify different version)
-        },
-        input: [
-          { role: 'user', content: userMessage }  // Only user message needed
-        ],
-        store: true, // This makes it appear in OpenAI Logs/Responses
-        metadata: {
-          prompt_id: usePromptId,
-          subject: subject,
-          grade: grade,
-          worksheetType: worksheetType,
-          framework: framework || 'none',
-          lesson: lesson || 'none'
-        },
-        user: req.headers['x-user-id'] || 'anonymous' // For user attribution in logs
-      })
+      let response
+      try {
+        response = await openai.responses.create({
+          prompt: {
+            id: usePromptId // Your published prompt ID
+          },
+          input: [
+            { role: 'user', content: userMessage } // Only user message needed
+          ],
+          store: true, // This makes it appear in OpenAI Logs/Responses
+          metadata: {
+            prompt_id: usePromptId,
+            subject: subject,
+            grade: grade,
+            worksheetType: worksheetType,
+            framework: framework || 'none',
+            lesson: lesson || 'none'
+          },
+          user: req.headers['x-user-id'] || 'anonymous' // For user attribution in logs
+        })
+      } catch (openaiErr) {
+        // If the prompt isn't found, OpenAI returns a 404 with a message containing "Prompt with id '...' not found"
+        const msg = openaiErr?.message || ''
+        const status = openaiErr?.status || openaiErr?.statusCode || null
+        console.error('OpenAI error when using promptId:', usePromptId, openaiErr)
+
+        if (status === 404 || /Prompt with id .* not found/.test(msg)) {
+          return res.status(404).json({
+            error: 'Prompt not found',
+            details: `Prompt with id '${usePromptId}' was not found in OpenAI account. Please check the prompt ID or remove it to use an inline prompt.`
+          })
+        }
+
+        // For other OpenAI errors, rethrow to be caught by outer try/catch and handled consistently
+        throw openaiErr
+      }
       
       // Extract response text from OpenAI Responses API
       // Priority: response.text (complete) > response.output[].content > response.output_text (may be truncated)
