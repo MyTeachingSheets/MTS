@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient'
 import CustomWorksheetTypeModal from '../../components/CustomWorksheetTypeModal'
 import WorksheetEditorModal from '../../components/WorksheetEditorModal'
 import ThumbnailUploadModal from '../../components/ThumbnailUploadModal'
+import AuthModal from '../../components/AuthModal'
 
 export default function AIGeneratePage(){
   const [prompt, setPrompt] = useState('')
@@ -25,6 +26,8 @@ export default function AIGeneratePage(){
   const [showThumbnailModal, setShowThumbnailModal] = useState(false)
   const [selectedWorksheet, setSelectedWorksheet] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authMode, setAuthMode] = useState('login')
   // Preview toggles per worksheet id
   const [previewOpen, setPreviewOpen] = useState({})
   
@@ -955,25 +958,20 @@ export default function AIGeneratePage(){
                 'Generate Worksheet'
               )}
             </button>
-            <div style={{marginTop:8,fontSize:'0.9rem',color: currentUser ? 'var(--text-primary)' : 'var(--text-secondary)'}}>
+            <div style={{marginTop:12,fontSize:'0.95rem',color: currentUser ? 'var(--text-primary)' : 'var(--text-secondary)',display:'flex',justifyContent:'center'}}>
               {currentUser ? null : (
-                <div>Please sign in (use the Log In button in the header) to generate worksheets</div>
+                <div style={{textAlign:'center'}}>
+                  <span style={{marginRight:6,color:'var(--text-secondary)'}}>Please</span>
+                  <button onClick={() => { setAuthMode('login'); setShowAuthModal(true) }} style={{background:'none',border:'none',padding:0,color:'var(--primary-navy)',textDecoration:'underline',cursor:'pointer',fontWeight:600}}>sign in</button>
+                  <span style={{marginLeft:6,color:'var(--text-secondary)'}}>to generate worksheets</span>
+                </div>
               )}
             </div>
+
+            {/* Auth modal for sign in/register */}
+            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} initialMode={authMode} />
             
-            <button 
-              className="btn btn-secondary" 
-              onClick={()=>{
-                setPrompt('')
-                setSubject('')
-                setStandard('')
-                setGrade('')
-                setDomain('')
-                setWorksheetType('')
-              }}
-            >
-              Clear All
-            </button>
+            
           </div>
         </aside>
 
@@ -1024,10 +1022,7 @@ export default function AIGeneratePage(){
                           <img src={w.thumbnailUrl} alt={w.title} />
                         ) : (
                           <div className="thumbnail-placeholder">
-                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
-                              <path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V5A2 2 0 0 1 2.002 3h10a2 2 0 0 1 2 2v8zm-12-1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8l-3.5-3.5-2.5 2.5-3.5-3.5v6z"/>
-                            </svg>
+                            <img src="/logo.png" alt="logo" className="thumbnail-logo" />
                           </div>
                         )}
                         {uploadingThumbnail[w.id] && (
@@ -1047,7 +1042,7 @@ export default function AIGeneratePage(){
                       <div className="worksheet-raw-main">
                         <div className="worksheet-raw-header">
                           <div className="worksheet-raw-meta">
-                            <span className="meta-badge badge-status" data-status={w.status}>{w.status}</span>
+                            <strong className="worksheet-title" style={{fontSize:'0.95rem',color:'var(--text-primary)'}}>{w.title || 'Untitled'}</strong>
                           </div>
                           <div className="worksheet-raw-actions">
                           <button 
@@ -1068,30 +1063,7 @@ export default function AIGeneratePage(){
                               {previewOpen[w.id] ? 'Hide' : 'Preview'}
                             </button>
                           
-                          {!w.thumbnailUploaded ? (
-                            <button 
-                              className="btn-action btn-action-secondary" 
-                              onClick={() => uploadThumbnail(w.id)}
-                              title="Upload thumbnail"
-                            >
-                              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                                <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                              </svg>
-                              Thumbnail
-                            </button>
-                          ) : (
-                            <button 
-                              className="btn-action btn-action-success" 
-                              onClick={() => listWorksheet(w.id)}
-                              title="Publish to marketplace"
-                            >
-                              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
-                              </svg>
-                              Publish
-                            </button>
-                          )}
+                          {/* publish button removed per request */}
                           
                           <button 
                             className="btn-action" 
@@ -1120,7 +1092,6 @@ export default function AIGeneratePage(){
                       {/* Raw Worksheet Content - compact by default, full when previewOpen */}
                       <div className="worksheet-raw-content">
                         <div className="worksheet-raw-title-row">
-                          <h3 className="worksheet-raw-title">{w.title}</h3>
                           <div className="worksheet-raw-sub">{w.description || ''}</div>
                         </div>
 
@@ -1410,9 +1381,9 @@ export default function AIGeneratePage(){
 
         .worksheet-thumbnail {
           position: relative;
-          width: 120px;
-          min-width: 120px;
-          height: 120px;
+          width: 180px;
+          min-width: 180px;
+          height: 180px;
           background: #f5f5f5;
           border-right: 1px solid var(--border-light);
           display: flex;
@@ -1452,6 +1423,14 @@ export default function AIGeneratePage(){
 
         .thumbnail-placeholder svg {
           opacity: 0.5;
+        }
+
+        .thumbnail-placeholder .thumbnail-logo {
+          max-width: 70%;
+          max-height: 70%;
+          object-fit: contain;
+          filter: grayscale(1) brightness(0.85);
+          opacity: 0.85;
         }
 
         .thumbnail-uploading {
@@ -1723,7 +1702,9 @@ export default function AIGeneratePage(){
           }
 
           .worksheet-thumbnail {
-            height: 150px;
+            height: 140px;
+            width: 140px;
+            min-width: 140px;
           }
 
           .worksheet-body {

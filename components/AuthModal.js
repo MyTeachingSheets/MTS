@@ -74,8 +74,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'register' })
         }
         setMessage({ type: 'success', text: 'Logged in!' })
         setTimeout(() => {
+          // Close the modal and keep the user on the current page.
+          // Previously we navigated to '/', which caused users who signed up
+          // from other pages (like /ai/generate) to be redirected back to home.
+          // Closing the modal without navigation keeps the user in context.
           onClose()
-          router.push('/')
         }, 800)
       }
     } else {
