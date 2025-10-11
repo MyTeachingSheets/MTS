@@ -98,25 +98,18 @@ export default async function handler(req, res) {
 
     // Priority: Stored Prompt (pmpt_*) > Assistant (asst_*) > Inline prompt
     
-    // If Stored Prompt ID is provided (pmpt_*), use it with Chat Completions
-    // Note: OpenAI stored prompts are meant to be copied/stored in your database,
-    // not fetched dynamically via API. The prompt_id is for tracking purposes.
+    // If Stored Prompt ID is provided (pmpt_*), DON'T use it - stored prompts can't be fetched via API
+    // Instead, just use inline prompt with the model settings from your OpenAI prompt config
     if (usePromptId) {
-      console.log('Using stored prompt configuration (ID:', usePromptId + ')')
+      console.log('Using prompt configuration (tracking ID:', usePromptId + ')')
+      console.log('⚠️ Note: OpenAI Stored Prompts cannot be dynamically fetched.')
+      console.log('💡 Recommendation: Remove prompt_id and just use inline system_prompt in database')
       
-      // Use the system_prompt from template config (you should copy your prompt content there)
-      // If you haven't added the prompt content to the database, it will use the default
+      // Use inline prompt from database with your OpenAI prompt's model settings
       const systemContent = templateConfig?.system_prompt || buildSystemPrompt()
-      
-      if (!templateConfig?.system_prompt) {
-        console.warn('⚠️ No system_prompt found in template config. Using default prompt.')
-        console.warn('💡 TIP: Copy your OpenAI prompt content to the system_prompt column in your database.')
-      }
-      
-      // Use model settings from template config or defaults
-      const model = templateConfig?.model || 'gpt-4o'
-      const temperature = templateConfig?.temperature || 0.7
-      const maxTokens = templateConfig?.max_tokens || 4000
+      const model = templateConfig?.model || 'gpt-4.1-nano' // Match your OpenAI prompt config
+      const temperature = templateConfig?.temperature || 1.00
+      const maxTokens = templateConfig?.max_tokens || 2048
       
       console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
       
@@ -129,9 +122,9 @@ export default async function handler(req, res) {
         temperature,
         max_tokens: maxTokens,
         response_format: { type: 'json_object' },
-        store: true, // Enable conversation storage
+        store: true,
         metadata: {
-          prompt_id: usePromptId // Track which prompt configuration was used
+          prompt_id: usePromptId // Just for tracking in logs
         }
       })
       
