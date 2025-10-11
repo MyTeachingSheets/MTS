@@ -9,7 +9,10 @@ CREATE TABLE IF NOT EXISTS public.prompt_templates (
   display_name TEXT NOT NULL,
   description TEXT,
   
-  -- OpenAI Assistant Configuration (RECOMMENDED - for custom prompts created in OpenAI platform)
+  -- OpenAI Stored Prompt Configuration (RECOMMENDED - for prompts saved in OpenAI platform)
+  prompt_id TEXT, -- OpenAI Stored Prompt ID (e.g., pmpt_xxxxx)
+  
+  -- OpenAI Assistant Configuration (ALTERNATIVE - for assistant-based workflows)
   assistant_id TEXT, -- OpenAI Assistant ID (e.g., asst_xxxxx)
   -- When assistant_id is set, all model settings are configured in OpenAI platform
   -- The fields below (model, temperature, etc.) are IGNORED
@@ -33,9 +36,9 @@ CREATE TABLE IF NOT EXISTS public.prompt_templates (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id),
   
-  -- Constraint: Must have either assistant_id OR system_prompt
+  -- Constraint: Must have either prompt_id, assistant_id, OR system_prompt
   CONSTRAINT has_prompt_config CHECK (
-    (assistant_id IS NOT NULL) OR (system_prompt IS NOT NULL)
+    (prompt_id IS NOT NULL) OR (assistant_id IS NOT NULL) OR (system_prompt IS NOT NULL)
   )
 );
 

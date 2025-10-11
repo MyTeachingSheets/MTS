@@ -42,7 +42,8 @@ export default async function handler(req, res) {
       lessonDescription,
       worksheetType, 
       customInstructions,
-      assistantId // OpenAI Assistant/Prompt ID
+      assistantId, // OpenAI Assistant ID (asst_*)
+      promptId // OpenAI Stored Prompt ID (pmpt_*)
     } = req.body
 
     // Validation
@@ -91,11 +92,68 @@ export default async function handler(req, res) {
       }
     }
 
-    // Determine which API to use: Assistants API or Chat Completions API
+    // Determine which ID to use: Assistant ID, Prompt ID, or from template config
     const useAssistantId = assistantId || templateConfig?.assistant_id
+    const usePromptId = promptId || templateConfig?.prompt_id
 
-    // If Assistant ID is provided, use Assistants API (custom prompts)
-    if (useAssistantId) {
+    // Priority: Stored Prompt (pmpt_*) > Assistant (asst_*) > Inline prompt
+    
+    // If Stored Prompt ID is provided (pmpt_*), fetch and use it
+    if (usePromptId) {
+      console.log('Using OpenAI Stored Prompt ID:', usePromptId)
+      
+      // Fetch the stored prompt from OpenAI
+      let storedPrompt
+      try {
+        // Use the prompts API to get the stored prompt content
+        const response = await fetch(`https://api.openai.com/v1/organization/prompts/${usePromptId}`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch stored prompt: ${response.status} ${response.statusText}`)
+        }
+        
+        storedPrompt = await response.json()
+      } catch (fetchError) {
+        console.error('Error fetching stored prompt:', fetchError)
+        // Fallback to inline prompt if fetch fails
+        console.log('Falling back to inline system prompt')
+        storedPrompt = null
+      }
+      
+      // Use model settings from template config or defaults
+      const model = templateConfig?.model || 'gpt-4o'
+      const temperature = templateConfig?.temperature || 0.7
+      const maxTokens = templateConfig?.max_tokens || 4000
+      
+      console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
+      
+      // Build messages using stored prompt or fallback
+      const systemContent = storedPrompt?.content || templateConfig?.system_prompt || buildSystemPrompt()
+      
+      completion = await openai.chat.completions.create({
+        model,
+        messages: [
+          { role: 'system', content: systemContent },
+          { role: 'user', content: userMessage }
+        ],
+        temperature,
+        max_tokens: maxTokens,
+        response_format: { type: 'json_object' },
+        store: true, // Enable conversation storage
+        metadata: {
+          prompt_id: usePromptId // Track which prompt was used
+        }
+      })
+      
+      aiResponse = completion.choices[0].message.content
+      
+    } else if (useAssistantId) {
+      // If Assistant ID is provided, use Assistants API (asst_*)
       console.log('Using OpenAI Assistant ID:', useAssistantId)
       
       // Create a thread

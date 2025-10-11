@@ -1,39 +1,47 @@
-# How to Use Your OpenAI Assistant ID for Worksheet Generation
+# How to Use Your OpenAI Custom Prompt for Worksheet Generation
 
-## Current Issue
-The system is using the **Chat Completions API** (inline prompts) instead of your custom **Assistant** from OpenAI.
+## ⚠️ Important: Chat Prompts vs Assistants
 
-## Why?
-The `prompt_templates` table in your database has the default template configured with an inline `system_prompt`, but **no `assistant_id`**.
+You created a **Chat Prompt** (ID starts with `pmpt_`), not an **Assistant** (ID starts with `asst_`).
 
-When the API sees no `assistant_id`, it falls back to Chat Completions API.
+**Your Prompt ID:** `pmpt_68e96f3b0d70819097e0338bec7f3d75059d1929c90daf37`
 
-## Solution: Add Your Assistant ID to the Database
+Good news: **Chat Prompts are simpler and better for worksheet generation!** ✅
 
-### Step 1: Get Your Assistant ID
-1. Go to https://platform.openai.com/assistants
-2. Find your custom assistant (the one you created for worksheet generation)
-3. Copy the **Assistant ID** (looks like: `asst_abc123xyz...`)
+## What's the Difference?
 
-### Step 2: Update the Database
-Run this SQL in your Supabase SQL Editor:
+| Feature | Chat Prompts (`pmpt_*`) | Assistants (`asst_*`) |
+|---------|------------------------|----------------------|
+| **Complexity** | ✅ Simple | ⚠️ Complex |
+| **Best For** | Single-turn generation | Multi-turn conversations |
+| **State** | Stateless | Stateful (threads) |
+| **Tools** | N/A | Code interpreter, file search |
+| **Your Use Case** | ✅ **Perfect!** | Overkill |
+
+## Solution: Add Your Chat Prompt ID to the Database
+
+### Step 1: Run this SQL in Supabase
+Go to your Supabase dashboard → SQL Editor and run:
 
 ```sql
--- Update the default template to use your Assistant ID
+-- Add your stored prompt ID to the default template
 UPDATE public.prompt_templates
 SET 
-  assistant_id = 'asst_YOUR_ASSISTANT_ID_HERE', -- Replace with your actual ID
+  prompt_id = 'pmpt_68e96f3b0d70819097e0338bec7f3d75059d1929c90daf37',
   system_prompt = NULL, -- Clear inline prompt
   updated_at = NOW()
 WHERE name = 'default';
 
 -- Verify it worked
-SELECT name, display_name, assistant_id 
+SELECT name, display_name, prompt_id 
 FROM public.prompt_templates 
 WHERE name = 'default';
 ```
 
-**Replace `asst_YOUR_ASSISTANT_ID_HERE`** with your actual assistant ID!
+### Step 2: Test
+1. Go to `/ai/generate`
+2. Generate a worksheet
+3. It will now use your custom prompt from OpenAI! 🎉
 
 ### Step 3: Redeploy (If on Vercel/Production)
 If you're testing on production (myteachingsheets.com):
