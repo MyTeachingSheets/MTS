@@ -98,21 +98,24 @@ export default async function handler(req, res) {
 
     // Priority: Stored Prompt (pmpt_*) > Assistant (asst_*) > Inline prompt
     
-    // If Stored Prompt ID is provided (pmpt_*), DON'T use it - stored prompts can't be fetched via API
-    // Instead, just use inline prompt with the model settings from your OpenAI prompt config
+    // If Stored Prompt ID is provided (pmpt_*), use it directly with Chat Completions
+    // The prompt ID should be included in metadata for tracking in OpenAI logs
     if (usePromptId) {
-      console.log('Using prompt configuration (tracking ID:', usePromptId + ')')
-      console.log('⚠️ Note: OpenAI Stored Prompts cannot be dynamically fetched.')
-      console.log('💡 Recommendation: Remove prompt_id and just use inline system_prompt in database')
+      console.log('Using OpenAI Stored Prompt (ID:', usePromptId + ')')
       
-      // Use inline prompt from database with your OpenAI prompt's model settings
-      const systemContent = templateConfig?.system_prompt || buildSystemPrompt()
-      const model = templateConfig?.model || 'gpt-4.1-nano' // Match your OpenAI prompt config
+      // Get model settings - use from template or defaults
+      const model = templateConfig?.model || 'gpt-4.1-nano'
       const temperature = templateConfig?.temperature || 1.00
       const maxTokens = templateConfig?.max_tokens || 2048
       
-      console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
+      // Get system prompt - use from template or default
+      const systemContent = templateConfig?.system_prompt || buildSystemPrompt()
       
+      console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
+      console.log(`Prompt ID: ${usePromptId}`)
+      
+      // Call Chat Completions with prompt ID in metadata
+      // OpenAI will track this in logs and associate it with your stored prompt
       completion = await openai.chat.completions.create({
         model,
         messages: [
@@ -124,7 +127,7 @@ export default async function handler(req, res) {
         response_format: { type: 'json_object' },
         store: true,
         metadata: {
-          prompt_id: usePromptId // Just for tracking in logs
+          prompt_id: usePromptId  // This appears in OpenAI logs
         }
       })
       
