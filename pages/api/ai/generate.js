@@ -98,31 +98,19 @@ export default async function handler(req, res) {
 
     // Priority: Stored Prompt (pmpt_*) > Assistant (asst_*) > Inline prompt
     
-    // If Stored Prompt ID is provided (pmpt_*), fetch and use it
+    // If Stored Prompt ID is provided (pmpt_*), use it with Chat Completions
+    // Note: OpenAI stored prompts are meant to be copied/stored in your database,
+    // not fetched dynamically via API. The prompt_id is for tracking purposes.
     if (usePromptId) {
-      console.log('Using OpenAI Stored Prompt ID:', usePromptId)
+      console.log('Using stored prompt configuration (ID:', usePromptId + ')')
       
-      // Fetch the stored prompt from OpenAI
-      let storedPrompt
-      try {
-        // Use the prompts API to get the stored prompt content
-        const response = await fetch(`https://api.openai.com/v1/organization/prompts/${usePromptId}`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch stored prompt: ${response.status} ${response.statusText}`)
-        }
-        
-        storedPrompt = await response.json()
-      } catch (fetchError) {
-        console.error('Error fetching stored prompt:', fetchError)
-        // Fallback to inline prompt if fetch fails
-        console.log('Falling back to inline system prompt')
-        storedPrompt = null
+      // Use the system_prompt from template config (you should copy your prompt content there)
+      // If you haven't added the prompt content to the database, it will use the default
+      const systemContent = templateConfig?.system_prompt || buildSystemPrompt()
+      
+      if (!templateConfig?.system_prompt) {
+        console.warn('⚠️ No system_prompt found in template config. Using default prompt.')
+        console.warn('💡 TIP: Copy your OpenAI prompt content to the system_prompt column in your database.')
       }
       
       // Use model settings from template config or defaults
@@ -131,9 +119,6 @@ export default async function handler(req, res) {
       const maxTokens = templateConfig?.max_tokens || 4000
       
       console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
-      
-      // Build messages using stored prompt or fallback
-      const systemContent = storedPrompt?.content || templateConfig?.system_prompt || buildSystemPrompt()
       
       completion = await openai.chat.completions.create({
         model,
@@ -146,7 +131,7 @@ export default async function handler(req, res) {
         response_format: { type: 'json_object' },
         store: true, // Enable conversation storage
         metadata: {
-          prompt_id: usePromptId // Track which prompt was used
+          prompt_id: usePromptId // Track which prompt configuration was used
         }
       })
       

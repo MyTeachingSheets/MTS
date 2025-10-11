@@ -22,13 +22,16 @@ BEGIN
   END IF;
 END $$;
 
--- Add your stored prompt ID to the default template
+-- Add your stored prompt ID AND prompt content to the default template
+-- IMPORTANT: Copy your actual prompt content from OpenAI and paste it below
 UPDATE public.prompt_templates
 SET 
   prompt_id = 'pmpt_68e96f3b0d70819097e0338bec7f3d75059d1929c90daf37',
-  system_prompt = NULL,
+  system_prompt = 'PASTE YOUR OPENAI PROMPT CONTENT HERE', -- ⚠️ Replace this with your actual prompt
   updated_at = NOW()
 WHERE name = 'default';
+
+-- If you don't have your prompt content handy, the system will use the default prompt as fallback
 
 -- Verify the update
 SELECT 
