@@ -229,7 +229,8 @@ export default function AIGeneratePage(){
           lesson: selectedLesson?.name,
           lessonDescription: selectedLesson?.description,
           worksheetType: worksheetTypes.find(t => t.id === worksheetType || t.name === worksheetType)?.name || worksheetType,
-          customInstructions: prompt
+          customInstructions: prompt,
+          promptTemplateName: 'default' // Use default template (will use assistant_id if configured in DB)
         })
       })
 
