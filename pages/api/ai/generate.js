@@ -98,38 +98,22 @@ export default async function handler(req, res) {
 
     // Priority: Stored Prompt (pmpt_*) > Assistant (asst_*) > Inline prompt
     
-    // If Stored Prompt ID is provided (pmpt_*), use Responses API
-    // The Responses API properly stores logs in OpenAI dashboard and uses prompt configuration
+    // If Stored Prompt ID is provided (pmpt_*), use Responses API with prompt reference
+    // This uses your published prompt directly from OpenAI (recommended approach)
     if (usePromptId) {
-      console.log('Using OpenAI Responses API with prompt ID:', usePromptId)
+      console.log('Using OpenAI Published Prompt ID:', usePromptId)
+      console.log('Fetching prompt configuration from OpenAI dashboard...')
       
-      // Use the system_prompt from template config
-      const systemContent = templateConfig?.system_prompt || buildSystemPrompt()
-      
-      if (!templateConfig?.system_prompt) {
-        console.warn('⚠️ No system_prompt found in template config. Using default prompt.')
-        console.warn('💡 TIP: Copy your OpenAI prompt content to the system_prompt column in your database.')
-      }
-      
-      // Get model settings from template config or use defaults
-      // Note: When using prompt_id, OpenAI will use the model configured in the prompt
-      const model = templateConfig?.model || 'gpt-5'
-      const temperature = templateConfig?.temperature || 1.0
-      const maxTokens = templateConfig?.max_tokens || 2048
-      
-      console.log(`Model: ${model}, Temperature: ${temperature}, Max Output Tokens: ${maxTokens}`)
-      console.log(`Prompt will use configuration from OpenAI dashboard (prompt_id: ${usePromptId})`)
-      
-      // Use Responses API - this will appear in OpenAI dashboard logs
+      // Use Responses API with prompt reference - OpenAI handles prompt content
+      // This is the RECOMMENDED way to use published prompts
       const response = await openai.responses.create({
-        model,
+        prompt: {
+          id: usePromptId,  // Your published prompt ID
+          version: '1'      // Use version 1 (or specify different version)
+        },
         input: [
-          { role: 'system', content: systemContent },
-          { role: 'user', content: userMessage }
+          { role: 'user', content: userMessage }  // Only user message needed
         ],
-        temperature,
-        max_output_tokens: maxTokens,
-        response_format: { type: 'json_object' },
         store: true, // This makes it appear in OpenAI Logs/Responses
         metadata: {
           prompt_id: usePromptId,
@@ -147,7 +131,7 @@ export default async function handler(req, res) {
       
       // Create completion object for consistent metadata handling
       completion = {
-        model: response.model || model,
+        model: response.model,
         usage: response.usage || { 
           total_tokens: 0, 
           prompt_tokens: 0, 
@@ -155,7 +139,8 @@ export default async function handler(req, res) {
         }
       }
       
-      console.log('Response ID:', response.id, '| Tokens:', completion.usage.total_tokens)
+      console.log('✅ Used OpenAI prompt configuration')
+      console.log('Response ID:', response.id, '| Model:', completion.model, '| Tokens:', completion.usage.total_tokens)
       
     } else if (useAssistantId) {
       // If Assistant ID is provided, use Assistants API (asst_*)
@@ -402,6 +387,9 @@ function buildUserMessage({ subject, framework, grade, lesson, lessonDescription
   
   // Add worksheet type specific guidance
   prompt += `\n${getWorksheetTypeGuidance(worksheetType)}`
+  
+  // IMPORTANT: When using json_object format, must explicitly request JSON
+  prompt += `\n\nIMPORTANT: Please respond with a valid JSON object containing the complete worksheet data.`
   
   return prompt
 }
