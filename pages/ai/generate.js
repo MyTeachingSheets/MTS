@@ -1130,9 +1130,7 @@ export default function AIGeneratePage(){
                             {w.content.learning_objectives && w.content.learning_objectives.length > 0 && (
                               <div className="compact-line">Learning objectives: {w.content.learning_objectives.slice(0,2).join('; ')}{w.content.learning_objectives.length > 2 ? '…' : ''}</div>
                             )}
-                            {w.content.questions && (
-                              <div className="compact-line">Questions: <strong>{w.content.questions.length}</strong> • First: {w.content.questions[0]?.text || w.content.questions[0]?.question || '—'}</div>
-                            )}
+                            {/* Questions hidden in compact view by request */}
                           </div>
                         )}
 
@@ -1153,24 +1151,7 @@ export default function AIGeneratePage(){
                                 </ul>
                               </div>
                             )}
-                            {w.content.questions && w.content.questions.length > 0 && (
-                              <div className="raw-section">
-                                <strong>Questions:</strong>
-                                {w.content.questions.map((q, idx) => (
-                                  <div key={idx} className="question-item">
-                                    <div className="question-number">Q{idx + 1}:</div>
-                                    <div className="question-content">
-                                      <p><strong>{q.text || q.question}</strong></p>
-                                      {q.marks && <span className="question-marks">[{q.marks} marks]</span>}
-                                      {q.answer && (
-                                        <div className="question-answer">
-                                          <em>Answer:</em> {q.answer}</div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {/* Questions hidden in full preview by request */}
                             {w.content.instructions && (
                               <div className="raw-section">
                                 <strong>Instructions:</strong>
