@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import CustomWorksheetTypeModal from '../../components/CustomWorksheetTypeModal'
 import WorksheetEditorModal from '../../components/WorksheetEditorModal'
@@ -7,6 +7,7 @@ import ThumbnailUploadModal from '../../components/ThumbnailUploadModal'
 export default function AIGeneratePage(){
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   // Hierarchical selections
   const [selectedSubject, setSelectedSubject] = useState(null)
@@ -23,6 +24,14 @@ export default function AIGeneratePage(){
   const [showEditorModal, setShowEditorModal] = useState(false)
   const [showThumbnailModal, setShowThumbnailModal] = useState(false)
   const [selectedWorksheet, setSelectedWorksheet] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
+  // Preview toggles per worksheet id
+  const [previewOpen, setPreviewOpen] = useState({})
+  
+  // Thumbnail upload states
+  const [dragOver, setDragOver] = useState({})
+  const [uploadingThumbnail, setUploadingThumbnail] = useState({})
+  const thumbnailInputs = useRef({})
   
   // Worksheet types from database
   const [worksheetTypes, setWorksheetTypes] = useState([])
@@ -42,7 +51,25 @@ export default function AIGeneratePage(){
   useEffect(() => {
     loadWorksheetTypes()
     loadSubjects()
+    // Load current user session
+    ;(async () => {
+      const { data } = await supabase.auth.getSession()
+      setCurrentUser(data?.session?.user ?? null)
+    })()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null)
+    })
+    // cleanup listener when component unmounts
+    return () => listener?.subscription?.unsubscribe()
   }, [])
+
+  // Load user's worksheets from DB when authenticated
+  useEffect(() => {
+    if (currentUser) {
+      loadWorksheetsFromDB()
+    }
+  }, [currentUser])
 
   // Load frameworks when subject changes
   useEffect(() => {
@@ -91,6 +118,42 @@ export default function AIGeneratePage(){
       setSelectedLesson(null)
     }
   }, [selectedGrade])
+
+  const loadWorksheetsFromDB = async () => {
+    if (!currentUser) return
+    
+    try {
+      const res = await fetch('/api/worksheets/list', {
+        headers: {
+          'x-user-id': currentUser.id
+        }
+      })
+      
+      if (res.ok) {
+        const { data } = await res.json()
+        // Transform DB records to match the expected format
+        const transformedWorksheets = (data || []).map(dbWorksheet => ({
+          id: dbWorksheet.id,
+          title: dbWorksheet.title,
+          subject: dbWorksheet.subject || '—',
+          standard: dbWorksheet.framework || '—',
+          grade: dbWorksheet.grade || '—',
+          domain: dbWorksheet.domain || '—',
+          type: dbWorksheet.worksheet_type || '—',
+          customInstructions: dbWorksheet.custom_instructions || '',
+          status: dbWorksheet.status || 'draft',
+          thumbnailUploaded: dbWorksheet.thumbnail_uploaded || false,
+          thumbnailUrl: dbWorksheet.thumbnail_url || null,
+          isListed: dbWorksheet.is_listed || false,
+          createdAt: dbWorksheet.created_at,
+          content: dbWorksheet.content
+        }))
+        setWorksheets(transformedWorksheets)
+      }
+    } catch (err) {
+      console.error('Failed to load worksheets from database:', err)
+    }
+  }
 
   const loadSubjects = async () => {
     try {
@@ -152,24 +215,40 @@ export default function AIGeneratePage(){
   const loadWorksheetTypes = async () => {
     setLoadingTypes(true)
     try {
-      // For now, use default types until database is set up
+      // Default types (always available)
       const defaultTypes = [
-        { id: 'practice', name: 'Practice', description: 'Standard practice worksheet' },
-        { id: 'assessment', name: 'Assessment', description: 'Formal assessment' },
-        { id: 'quiz', name: 'Quiz', description: 'Quick quiz format' },
-        { id: 'mixed', name: 'Mixed', description: 'Mixed question types' }
+        { id: 'practice', name: 'Practice', description: 'Standard practice worksheet', is_custom: false },
+        { id: 'assessment', name: 'Assessment', description: 'Formal assessment', is_custom: false },
+        { id: 'quiz', name: 'Quiz', description: 'Quick quiz format', is_custom: false },
+        { id: 'mixed', name: 'Mixed', description: 'Mixed question types', is_custom: false }
       ]
-      setWorksheetTypes(defaultTypes)
       
-      // TODO: Uncomment when database is set up
-      // const { data, error } = await supabase
-      //   .from('worksheet_types')
-      //   .select('*')
-      //   .eq('is_active', true)
-      //   .order('name')
-      // 
-      // if (error) throw error
-      // setWorksheetTypes(data || [])
+      // Load user's custom types if authenticated
+      const { data: { session } } = await supabase.auth.getSession()
+      let customTypes = []
+      
+      if (session?.user) {
+        const response = await fetch('/api/worksheet-types/custom', {
+          headers: {
+            'x-user-id': session.user.id
+          }
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          customTypes = result.types.map(t => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            is_custom: true,
+            question_types: t.question_types,
+            json_schema: t.json_schema
+          }))
+        }
+      }
+      
+      // Merge default and custom types
+      setWorksheetTypes([...defaultTypes, ...customTypes])
     } catch (err) {
       console.error('Failed to load worksheet types:', err)
     } finally {
@@ -179,28 +258,51 @@ export default function AIGeneratePage(){
 
   const handleSaveCustomType = async (typeData) => {
     try {
-      // TODO: Save to database when set up
-      // const { data, error } = await supabase
-      //   .from('worksheet_types')
-      //   .insert([typeData])
-      //   .select()
-      // 
-      // if (error) throw error
-      
-      // For now, add to local state
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
+        throw new Error('You must be signed in to create custom worksheet types')
+      }
+
+      // Save to database via API
+      const response = await fetch('/api/worksheet-types/custom', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': session.user.id
+        },
+        body: JSON.stringify({
+          name: typeData.name,
+          description: typeData.description,
+          questionTypes: typeData.questionTypes,
+          jsonSchema: typeData.jsonSchema
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create custom type')
+      }
+
+      const result = await response.json()
       const newType = {
-        id: `custom_${Date.now()}`,
-        name: typeData.name,
-        description: typeData.description,
-        is_custom: true
+        id: result.type.id,
+        name: result.type.name,
+        description: result.type.description,
+        is_custom: true,
+        question_types: result.type.question_types,
+        json_schema: result.type.json_schema
       }
       
+      // Add to local state and select it
       setWorksheetTypes([...worksheetTypes, newType])
       setWorksheetType(newType.id)
       
-      alert('Custom worksheet type created successfully!')
+      setSuccessMessage('Custom worksheet type created successfully!')
+      setTimeout(() => setSuccessMessage(''), 3000)
     } catch (err) {
       console.error('Failed to save custom type:', err)
+      setSuccessMessage(err.message || 'Failed to create custom type')
+      setTimeout(() => setSuccessMessage(''), 5000)
       throw err
     }
   }
@@ -210,10 +312,18 @@ export default function AIGeneratePage(){
     
     // Validation
     if (!selectedSubject || !selectedGrade || !worksheetType) {
-      alert('Please select Subject, Grade, and Worksheet Type')
+      console.warn('Please select Subject, Grade, and Worksheet Type')
       return
     }
     
+    // Ensure user is signed in
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session || !session.user) {
+      setSuccessMessage('Please sign in to generate worksheets')
+      setTimeout(() => setSuccessMessage(''), 3000)
+      return
+    }
+
     setGenerating(true)
     try{
       // Call the OpenAI API endpoint
@@ -221,6 +331,7 @@ export default function AIGeneratePage(){
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
+          , 'x-user-id': session.user.id
         },
         body: JSON.stringify({
           subject: selectedSubject.name,
@@ -230,7 +341,18 @@ export default function AIGeneratePage(){
           lessonDescription: selectedLesson?.description,
           worksheetType: worksheetTypes.find(t => t.id === worksheetType || t.name === worksheetType)?.name || worksheetType,
           customInstructions: prompt,
-          promptTemplateName: 'default' // Use default template (will use assistant_id if configured in DB)
+          promptTemplateName: 'default', // Use default template (will use assistant_id if configured in DB)
+          // Include custom JSON schema if custom type selected
+          ...((() => {
+            const selectedType = worksheetTypes.find(t => t.id === worksheetType)
+            if (selectedType?.is_custom && selectedType.json_schema) {
+              return {
+                customTypeId: selectedType.id,
+                jsonSchema: selectedType.json_schema
+              }
+            }
+            return {}
+          })())
         })
       })
 
@@ -249,41 +371,15 @@ export default function AIGeneratePage(){
         throw new Error(data?.details || data?.error || 'Failed to generate worksheet')
       }
 
-      // Create worksheet entry with AI-generated content
-      const id = Date.now()
-      const selectedType = worksheetTypes.find(t => t.id === worksheetType || t.name === worksheetType)
-
-      const newWorksheet = {
-        id,
-        title: data.worksheet.title,
-        subject: selectedSubject?.name || '—',
-        standard: selectedFramework?.name || '—',
-        grade: selectedGrade?.name || '—',
-        domain: selectedLesson?.name || '—',
-        type: selectedType?.name || worksheetType || '—',
-        customInstructions: prompt || '',
-        status: 'draft',
-        thumbnailUploaded: false,
-        createdAt: new Date().toISOString(),
-        // AI-generated content from OpenAI
-        content: {
-          version: '1.0',
-          ...data.worksheet,
-          aiMetadata: {
-            model: data.metadata?.model,
-            tokensUsed: data.metadata?.tokensUsed,
-            generatedAt: new Date().toISOString()
-          }
-        }
-      }
-
-      setWorksheets(prev => [newWorksheet, ...prev])
-      
       // Clear prompt after generation
       setPrompt('')
-      
-      // Show success message
-      alert('Worksheet generated successfully!')
+
+      // Show a transient in-page success message instead of blocking alert
+      setSuccessMessage('Worksheet generated successfully!')
+      setTimeout(() => setSuccessMessage(''), 3000)
+
+      // Reload worksheets from DB to get the newly saved worksheet with its DB ID
+      await loadWorksheetsFromDB()
     }catch(err){
       console.error('Generate failed', err)
       alert('Failed to generate: ' + (err?.message || err))
@@ -308,9 +404,31 @@ export default function AIGeneratePage(){
     return questions
   }
 
-  function removeWorksheet(id){
-    if (confirm('Are you sure you want to delete this worksheet?')) {
+  async function removeWorksheet(id){
+    if (!confirm('Are you sure you want to delete this worksheet?')) return
+    
+    try {
+      // Delete from database
+      if (currentUser) {
+        const response = await fetch(`/api/worksheets/delete`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': currentUser.id
+          },
+          body: JSON.stringify({ id })
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete worksheet from database')
+        }
+      }
+      
+      // Remove from local state
       setWorksheets(prev => prev.filter(w => w.id !== id))
+    } catch (err) {
+      console.error('Failed to delete worksheet:', err)
+      alert('Failed to delete worksheet: ' + err.message)
     }
   }
 
@@ -326,23 +444,46 @@ export default function AIGeneratePage(){
     setShowThumbnailModal(true)
   }
 
-  function listWorksheet(id) {
+  async function listWorksheet(id) {
     const worksheet = worksheets.find(w => w.id === id)
     if (!worksheet.thumbnailUploaded) {
       alert('Please upload a thumbnail before listing the worksheet')
       return
     }
     
-    // Update worksheet status to published
-    setWorksheets(prevWorksheets => 
-      prevWorksheets.map(w => 
-        w.id === id 
-          ? { ...w, status: 'published', isListed: true }
-          : w
+    try {
+      if (currentUser) {
+        // Update database
+        await fetch('/api/worksheets/save', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': currentUser.id
+          },
+          body: JSON.stringify({
+            id,
+            title: worksheet.title,
+            content: worksheet.content,
+            status: 'published',
+            isListed: true
+          })
+        })
+      }
+      
+      // Update local state
+      setWorksheets(prevWorksheets => 
+        prevWorksheets.map(w => 
+          w.id === id 
+            ? { ...w, status: 'published', isListed: true }
+            : w
+        )
       )
-    )
-    
-    alert('✅ Worksheet published successfully! It will now appear on the marketplace.')
+      
+      alert('✅ Worksheet published successfully! It will now appear on the marketplace.')
+    } catch (err) {
+      console.error('Failed to publish worksheet:', err)
+      alert('Failed to publish worksheet: ' + err.message)
+    }
   }
 
   function downloadWorksheet(id) {
@@ -491,22 +632,223 @@ export default function AIGeneratePage(){
     }
   }
 
-  const handleSaveWorksheet = (updatedWorksheet) => {
-    setWorksheets(prevWorksheets =>
-      prevWorksheets.map(w =>
-        w.id === updatedWorksheet.id ? updatedWorksheet : w
+  const handleSaveWorksheet = async (updatedWorksheet) => {
+    try {
+      if (currentUser) {
+        // Save to database
+        const response = await fetch('/api/worksheets/save', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': currentUser.id
+          },
+          body: JSON.stringify({
+            id: updatedWorksheet.id,
+            title: updatedWorksheet.title,
+            subject: updatedWorksheet.subject,
+            standard: updatedWorksheet.standard,
+            grade: updatedWorksheet.grade,
+            domain: updatedWorksheet.domain,
+            worksheetType: updatedWorksheet.type,
+            customInstructions: updatedWorksheet.customInstructions,
+            content: updatedWorksheet.content,
+            status: updatedWorksheet.status,
+            thumbnailUrl: updatedWorksheet.thumbnailUrl,
+            thumbnailUploaded: updatedWorksheet.thumbnailUploaded,
+            isListed: updatedWorksheet.isListed
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to save worksheet to database')
+        }
+      }
+
+      // Update local state
+      setWorksheets(prevWorksheets =>
+        prevWorksheets.map(w =>
+          w.id === updatedWorksheet.id ? updatedWorksheet : w
+        )
       )
-    )
+    } catch (err) {
+      console.error('Failed to save worksheet:', err)
+      alert('Failed to save worksheet: ' + err.message)
+    }
   }
 
-  const handleThumbnailUploadComplete = (worksheetId, thumbnailUrl) => {
-    setWorksheets(prevWorksheets =>
-      prevWorksheets.map(w =>
-        w.id === worksheetId
-          ? { ...w, thumbnailUrl, thumbnailUploaded: true }
-          : w
+  const handleThumbnailUploadComplete = async (worksheetId, thumbnailUrl) => {
+    try {
+      const worksheet = worksheets.find(w => w.id === worksheetId)
+      if (currentUser && worksheet) {
+        // Update database
+        await fetch('/api/worksheets/save', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': currentUser.id
+          },
+          body: JSON.stringify({
+            id: worksheetId,
+            title: worksheet.title,
+            content: worksheet.content,
+            thumbnailUrl,
+            thumbnailUploaded: true
+          })
+        })
+      }
+
+      // Update local state
+      setWorksheets(prevWorksheets =>
+        prevWorksheets.map(w =>
+          w.id === worksheetId
+            ? { ...w, thumbnailUrl, thumbnailUploaded: true }
+            : w
+        )
       )
-    )
+    } catch (err) {
+      console.error('Failed to update thumbnail:', err)
+    }
+  }
+
+  // Drag and drop handlers for thumbnail
+  const handleThumbnailDragOver = (e, worksheetId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(prev => ({ ...prev, [worksheetId]: true }))
+  }
+
+  const handleThumbnailDragLeave = (e, worksheetId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(prev => ({ ...prev, [worksheetId]: false }))
+  }
+
+  const handleThumbnailDrop = async (e, worksheetId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(prev => ({ ...prev, [worksheetId]: false }))
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      await uploadThumbnailFile(worksheetId, file)
+    }
+  }
+
+  const handleThumbnailClick = (worksheetId) => {
+    if (thumbnailInputs.current[worksheetId]) {
+      thumbnailInputs.current[worksheetId].click()
+    }
+  }
+
+  const handleThumbnailFileSelect = async (e, worksheetId) => {
+    const file = e.target.files[0]
+    if (file) {
+      await uploadThumbnailFile(worksheetId, file)
+    }
+  }
+
+  const uploadThumbnailFile = async (worksheetId, file) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (JPG, PNG, etc.)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB')
+      return
+    }
+
+    setUploadingThumbnail(prev => ({ ...prev, [worksheetId]: true }))
+
+    // Small helper: show a temporary toast message
+    const showToast = (msg, timeout = 3000) => {
+      const el = document.createElement('div')
+      el.className = 'thumbnail-toast'
+      el.textContent = msg
+      Object.assign(el.style, {
+        position: 'fixed',
+        right: '24px',
+        top: '84px',
+        background: '#222',
+        color: 'white',
+        padding: '8px 12px',
+        borderRadius: '6px',
+        zIndex: 12000,
+        boxShadow: '0 6px 18px rgba(0,0,0,0.12)'
+      })
+      document.body.appendChild(el)
+      setTimeout(() => el.remove(), timeout)
+    }
+
+    try {
+      // Compress / resize the image client-side before converting to data URL
+      const dataUrl = await (async () => {
+        // If image is already small, skip compression
+        const img = await new Promise((resolve, reject) => {
+          const i = new Image()
+          i.onload = () => resolve(i)
+          i.onerror = () => reject(new Error('Failed to load image for compression'))
+          i.src = URL.createObjectURL(file)
+        })
+
+        const maxSize = 1200 // max width/height
+        let { width, height } = img
+        let scale = 1
+        if (width > maxSize || height > maxSize) {
+          scale = Math.min(maxSize / width, maxSize / height)
+          width = Math.round(width * scale)
+          height = Math.round(height * scale)
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+
+        // Choose output format based on original mime
+        const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+        const quality = 0.8
+        const durl = canvas.toDataURL(outputType, quality)
+        URL.revokeObjectURL(img.src)
+        return durl
+      })()
+
+      const response = await fetch('/api/worksheets/upload-thumbnail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || ''
+        },
+        body: JSON.stringify({ worksheetId, imageData: dataUrl })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Upload error response body:', errorData)
+        const msg = errorData?.details || errorData?.error || 'Upload failed'
+        showToast('Thumbnail upload failed', 4000)
+        throw new Error(msg)
+      }
+
+      const body = await response.json()
+      const thumbnailUrl = body?.data?.thumbnailUrl || body?.thumbnailUrl || null
+      
+  // Update the worksheet in state and database
+  await handleThumbnailUploadComplete(worksheetId, thumbnailUrl)
+
+  // Show a small confirmation toast
+  showToast('Thumbnail uploaded')
+      
+    } catch (error) {
+      console.error('Error uploading thumbnail:', error)
+      alert('Failed to upload thumbnail: ' + error.message)
+    } finally {
+      setUploadingThumbnail(prev => ({ ...prev, [worksheetId]: false }))
+    }
   }
 
   return (
@@ -613,6 +955,11 @@ export default function AIGeneratePage(){
                 'Generate Worksheet'
               )}
             </button>
+            <div style={{marginTop:8,fontSize:'0.9rem',color: currentUser ? 'var(--text-primary)' : 'var(--text-secondary)'}}>
+              {currentUser ? null : (
+                <div>Please sign in (use the Log In button in the header) to generate worksheets</div>
+              )}
+            </div>
             
             <button 
               className="btn btn-secondary" 
@@ -632,6 +979,11 @@ export default function AIGeneratePage(){
 
         <section className="ai-right-panel">
           <div className="ai-results-container">
+            {successMessage && (
+              <div style={{position:'fixed',right:24,top:84,zIndex:1200,background:'#e6ffed',color:'#0b6b27',padding:'10px 16px',borderRadius:8,boxShadow:'0 6px 18px rgba(0,0,0,0.08)'}}>
+                {successMessage}
+              </div>
+            )}
             {worksheets.length === 0 ? (
               <div className="ai-empty-state">
                 <div style={{fontSize:'4rem',marginBottom:16,opacity:0.8}}>�</div>
@@ -655,77 +1007,49 @@ export default function AIGeneratePage(){
               </div>
             ) : (
               <>
-                <div style={{marginBottom:20,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <h3 style={{margin:0,fontSize:'1.15rem',color:'var(--primary-navy)'}}>
-                    Generated Worksheets ({worksheets.length})
-                  </h3>
-                  <div style={{fontSize:'0.85rem',color:'var(--text-secondary)'}}>
-                    {worksheets.filter(w => w.status === 'draft').length} draft · {worksheets.filter(w => w.thumbnailUploaded).length} ready
-                  </div>
-                </div>
-                <div className="worksheets-grid">
+                {/* Header intentionally removed per UX request: no top summary shown */}
+                <div className="worksheets-list">
                   {worksheets.map(w => (
-                    <div key={w.id} className="worksheet-card">
-                      <div className="worksheet-thumbnail">
-                        {w.thumbnailUploaded ? (
-                          <div className="thumbnail-preview">
-                            <span style={{fontSize:'2rem'}}>🖼️</span>
-                          </div>
+                    <div key={w.id} className="worksheet-raw-item">
+                      {/* Thumbnail Placeholder */}
+                      <div 
+                        className={`worksheet-thumbnail ${dragOver[w.id] ? 'drag-over' : ''} ${uploadingThumbnail[w.id] ? 'uploading' : ''}`}
+                        onDragOver={(e) => handleThumbnailDragOver(e, w.id)}
+                        onDragLeave={(e) => handleThumbnailDragLeave(e, w.id)}
+                        onDrop={(e) => handleThumbnailDrop(e, w.id)}
+                        onClick={() => handleThumbnailClick(w.id)}
+                        title="Drag and drop an image or click to upload"
+                      >
+                        {w.thumbnailUrl ? (
+                          <img src={w.thumbnailUrl} alt={w.title} />
                         ) : (
                           <div className="thumbnail-placeholder">
-                            <svg width="40" height="40" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
-                              <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+                              <path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V5A2 2 0 0 1 2.002 3h10a2 2 0 0 1 2 2v8zm-12-1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8l-3.5-3.5-2.5 2.5-3.5-3.5v6z"/>
                             </svg>
-                            <span>No Thumbnail</span>
                           </div>
                         )}
-                        <div className="worksheet-status-badge" data-status={w.status}>
-                          {w.status}
-                        </div>
+                        {uploadingThumbnail[w.id] && (
+                          <div className="thumbnail-uploading">
+                            <div className="spinner"></div>
+                          </div>
+                        )}
+                        <input
+                          ref={el => thumbnailInputs.current[w.id] = el}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => handleThumbnailFileSelect(e, w.id)}
+                        />
                       </div>
                       
-                      <div className="worksheet-body">
-                        <h4 className="worksheet-title">{w.title}</h4>
-                        
-                        <div className="worksheet-meta">
-                          <span className="meta-badge">📚 {w.subject}</span>
-                          <span className="meta-badge">🎓 {w.grade}</span>
-                          {w.domain && <span className="meta-badge">📖 {w.domain}</span>}
-                        </div>
-
-                        <div className="worksheet-info">
-                          <span className="info-item">
-                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
-                              <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
-                            </svg>
-                            {w.content.estimatedTime} min
-                          </span>
-                          <span className="info-item">
-                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/>
-                            </svg>
-                            {w.content.totalMarks} marks
-                          </span>
-                          <span className="info-item">
-                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/>
-                            </svg>
-                            {w.type}
-                          </span>
-                        </div>
-
-                        {w.customInstructions && (
-                          <p className="worksheet-instructions">
-                            {w.customInstructions.length > 100 
-                              ? w.customInstructions.slice(0,100) + '...' 
-                              : w.customInstructions
-                            }
-                          </p>
-                        )}
-
-                        <div className="worksheet-actions">
+                      <div className="worksheet-raw-main">
+                        <div className="worksheet-raw-header">
+                          <div className="worksheet-raw-meta">
+                            <span className="meta-badge badge-status" data-status={w.status}>{w.status}</span>
+                          </div>
+                          <div className="worksheet-raw-actions">
                           <button 
                             className="btn-action btn-action-primary" 
                             onClick={() => viewWorksheet(w.id)}
@@ -736,10 +1060,17 @@ export default function AIGeneratePage(){
                             </svg>
                             Edit
                           </button>
+                            <button
+                              className="btn-action btn-action-secondary"
+                              onClick={() => setPreviewOpen(prev => ({ ...prev, [w.id]: !prev[w.id] }))}
+                              title={previewOpen[w.id] ? 'Hide preview' : 'Preview worksheet'}
+                            >
+                              {previewOpen[w.id] ? 'Hide' : 'Preview'}
+                            </button>
                           
                           {!w.thumbnailUploaded ? (
                             <button 
-                              className="btn-action btn-action-warning" 
+                              className="btn-action btn-action-secondary" 
                               onClick={() => uploadThumbnail(w.id)}
                               title="Upload thumbnail"
                             >
@@ -783,6 +1114,71 @@ export default function AIGeneratePage(){
                               <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
                             </svg>
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Raw Worksheet Content - compact by default, full when previewOpen */}
+                      <div className="worksheet-raw-content">
+                        <div className="worksheet-raw-title-row">
+                          <h3 className="worksheet-raw-title">{w.title}</h3>
+                          <div className="worksheet-raw-sub">{w.description || ''}</div>
+                        </div>
+
+                        {w.content && !previewOpen[w.id] && (
+                          <div className="raw-compact">
+                            {w.content.framework && <div className="compact-line">Framework: <strong>{w.content.framework}</strong></div>}
+                            {w.content.learning_objectives && w.content.learning_objectives.length > 0 && (
+                              <div className="compact-line">Learning objectives: {w.content.learning_objectives.slice(0,2).join('; ')}{w.content.learning_objectives.length > 2 ? '…' : ''}</div>
+                            )}
+                            {w.content.questions && (
+                              <div className="compact-line">Questions: <strong>{w.content.questions.length}</strong> • First: {w.content.questions[0]?.text || w.content.questions[0]?.question || '—'}</div>
+                            )}
+                          </div>
+                        )}
+
+                        {w.content && previewOpen[w.id] && (
+                          <div className="raw-full">
+                            {w.content.framework && (
+                              <div className="raw-section">
+                                <strong>Framework:</strong> {w.content.framework}
+                              </div>
+                            )}
+                            {w.content.learning_objectives && w.content.learning_objectives.length > 0 && (
+                              <div className="raw-section">
+                                <strong>Learning Objectives:</strong>
+                                <ul>
+                                  {w.content.learning_objectives.map((obj, idx) => (
+                                    <li key={idx}>{obj}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {w.content.questions && w.content.questions.length > 0 && (
+                              <div className="raw-section">
+                                <strong>Questions:</strong>
+                                {w.content.questions.map((q, idx) => (
+                                  <div key={idx} className="question-item">
+                                    <div className="question-number">Q{idx + 1}:</div>
+                                    <div className="question-content">
+                                      <p><strong>{q.text || q.question}</strong></p>
+                                      {q.marks && <span className="question-marks">[{q.marks} marks]</span>}
+                                      {q.answer && (
+                                        <div className="question-answer">
+                                          <em>Answer:</em> {q.answer}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {w.content.instructions && (
+                              <div className="raw-section">
+                                <strong>Instructions:</strong>
+                                <p>{w.content.instructions}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         </div>
                       </div>
                     </div>
@@ -1005,140 +1401,269 @@ export default function AIGeneratePage(){
           to { transform: rotate(360deg); }
         }
 
-        .worksheets-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 20px;
+        /* Thumbnail toast */
+        .thumbnail-toast {
+          font-size: 0.9rem;
+          opacity: 0.98;
         }
 
-        .worksheet-card {
+        .worksheets-list {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .worksheet-raw-item {
           background: white;
           border: 1px solid var(--border-light);
-          border-radius: 0;
+          border-radius: 8px;
           overflow: hidden;
           transition: all 0.2s;
+          display: flex;
+          gap: 16px;
         }
 
-        .worksheet-card:hover {
-          box-shadow: var(--shadow-md);
-          transform: translateY(-2px);
+        .worksheet-raw-item:hover {
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .worksheet-thumbnail {
           position: relative;
-          width: 100%;
-          height: 180px;
-          background: linear-gradient(135deg, var(--bg-light), white);
+          width: 120px;
+          min-width: 120px;
+          height: 120px;
+          background: #f5f5f5;
+          border-right: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          overflow: hidden;
         }
 
-        .thumbnail-preview {
+        .worksheet-thumbnail:hover {
+          background: #ebebeb;
+        }
+
+        .worksheet-thumbnail.drag-over {
+          background: #e3f2fd;
+          border: 2px dashed var(--primary-color);
+        }
+
+        .worksheet-thumbnail.uploading {
+          pointer-events: none;
+          opacity: 0.6;
+        }
+
+        .worksheet-thumbnail img {
           width: 100%;
           height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(135deg, var(--muted-teal), var(--accent-amber));
-          color: white;
+          object-fit: cover;
         }
 
         .thumbnail-placeholder {
           display: flex;
-          flex-direction: column;
           align-items: center;
-          gap: 8px;
-          color: var(--text-secondary);
+          justify-content: center;
+          color: #999;
+        }
+
+        .thumbnail-placeholder svg {
           opacity: 0.5;
         }
 
-        .thumbnail-placeholder span {
-          font-size: 0.8rem;
-          font-weight: 600;
+        .thumbnail-uploading {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
-        .worksheet-status-badge {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          padding: 4px 12px;
-          border-radius: 12px;
-          font-size: 0.75rem;
+        .spinner {
+          width: 24px;
+          height: 24px;
+          border: 3px solid #f3f3f3;
+          border-top: 3px solid var(--primary-color);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .worksheet-raw-main {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .worksheet-raw-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 10px 14px;
+          background: var(--bg-light);
+          border-bottom: 1px solid var(--border-light);
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .worksheet-raw-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .worksheet-raw-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .badge-status {
           font-weight: 700;
           text-transform: uppercase;
-          background: white;
-          color: var(--text-secondary);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
-        .worksheet-status-badge[data-status="published"] {
+        .badge-status[data-status="draft"] {
+          background: #f5f5f5;
+          color: #666;
+        }
+
+        .badge-status[data-status="published"] {
           background: #e8f5e9;
           color: #2e7d32;
         }
 
-        .worksheet-body {
-          padding: 16px;
+        .worksheet-raw-content {
+          padding: 12px 16px;
         }
 
-        .worksheet-title {
-          margin: 0 0 12px 0;
-          font-size: 1.05rem;
+        .worksheet-raw-title-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+        }
+
+        .worksheet-raw-title {
+          margin: 0;
+          font-size: 1.125rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1.2;
+        }
+
+        .worksheet-raw-sub {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+          margin-left: 12px;
+        }
+
+        .raw-section {
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border-light);
+        }
+
+        .raw-section:last-child {
+          border-bottom: none;
+        }
+
+        .raw-section strong {
+          display: block;
+          margin-bottom: 8px;
+          font-size: 1rem;
+          color: var(--primary-navy);
+        }
+
+        .raw-section ul {
+          margin: 0;
+          padding-left: 20px;
+          list-style: disc;
+        }
+
+        .raw-section li {
+          margin-bottom: 8px;
+          line-height: 1.6;
+          color: var(--text-primary);
+        }
+
+        .raw-section p {
+          margin: 0;
+          line-height: 1.7;
+          color: var(--text-primary);
+        }
+
+        .question-item {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 12px;
+          padding: 10px;
+          background: #fbfcfd;
+          border-radius: 6px;
+        }
+
+        .question-number {
+          flex-shrink: 0;
+          font-weight: 700;
+          color: var(--primary-navy);
+          font-size: 0.95rem;
+        }
+
+        .question-content {
+          flex: 1;
+        }
+
+        .question-content p {
+          margin: 0 0 6px 0;
+          color: var(--text-primary);
+          line-height: 1.5;
+        }
+
+        .question-marks {
+          display: inline-block;
+          padding: 2px 8px;
+          background: var(--accent-amber);
+          color: white;
+          border-radius: 4px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          margin-left: 8px;
+        }
+
+        .question-answer {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px dashed #dee2e6;
+          color: var(--text-secondary);
+          font-size: 0.95rem;
+        }
+
+        .question-answer em {
           font-weight: 600;
           color: var(--text-primary);
-          line-height: 1.4;
-        }
-
-        .worksheet-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          margin-bottom: 12px;
+          font-style: normal;
         }
 
         .meta-badge {
           font-size: 0.75rem;
-          padding: 4px 8px;
+          padding: 4px 12px;
           background: var(--bg-light);
-          border-radius: 4px;
+          border-radius: 16px;
           color: var(--text-secondary);
-          font-weight: 500;
-        }
-
-        .worksheet-info {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-bottom: 12px;
-          padding: 10px 0;
-          border-top: 1px solid var(--border-light);
-          border-bottom: 1px solid var(--border-light);
-        }
-
-        .info-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.8rem;
-          color: var(--text-secondary);
-        }
-
-        .info-item svg {
-          opacity: 0.7;
-        }
-
-        .worksheet-instructions {
-          margin: 0 0 12px 0;
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-          line-height: 1.5;
-          font-style: italic;
-        }
-
-        .worksheet-actions {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
+          font-weight: 600;
+          white-space: nowrap;
         }
 
         .btn-action {

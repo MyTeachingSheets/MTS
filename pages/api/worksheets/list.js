@@ -1,9 +1,15 @@
 // API route to get worksheets (with filters)
-import { supabase } from '../../../lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Get user ID from header (set by authenticated client)
+  const userId = req.headers['x-user-id']
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' })
   }
 
   try {
@@ -16,32 +22,35 @@ export default async function handler(req, res) {
       offset = 0 
     } = req.query
 
-    // TODO: Uncomment when Supabase is configured
-    // let query = supabase
-    //   .from('worksheets')
-    //   .select('*')
-    //   .order('created_at', { ascending: false })
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    )
 
-    // // Apply filters
-    // if (subject) query = query.eq('subject', subject)
-    // if (grade) query = query.eq('grade', grade)
-    // if (status) query = query.eq('status', status)
-    // if (isListed !== undefined) query = query.eq('is_listed', isListed === 'true')
+    // Build query for user's worksheets
+    let query = supabase
+      .from('worksheets')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
 
-    // // Pagination
-    // query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
+    // Apply filters
+    if (subject) query = query.eq('subject', subject)
+    if (grade) query = query.eq('grade', grade)
+    if (status) query = query.eq('status', status)
+    if (isListed !== undefined) query = query.eq('is_listed', isListed === 'true')
 
-    // const { data, error, count } = await query
+    // Pagination
+    query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
 
-    // if (error) throw error
+    const { data, error, count } = await query
 
-    // Mock response for now
-    const mockWorksheets = []
+    if (error) throw error
     
     return res.status(200).json({
       success: true,
-      data: mockWorksheets,
-      count: mockWorksheets.length,
+      data: data || [],
+      count: count || 0,
       pagination: {
         limit: parseInt(limit),
         offset: parseInt(offset)

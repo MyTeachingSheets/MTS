@@ -1,9 +1,15 @@
 // API route to create or update a worksheet
-import { supabase } from '../../../lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST' && req.method !== 'PUT') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Require authentication
+  const userId = req.headers['x-user-id']
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' })
   }
 
   try {
@@ -16,65 +22,54 @@ export default async function handler(req, res) {
       grade,
       domain,
       worksheetTypeId,
+      worksheetType,
       customInstructions,
       content,
-      status
+      status,
+      thumbnailUrl,
+      thumbnailUploaded,
+      isListed
     } = req.body
 
     // Validate required fields
-    if (!title || !subject || !grade || !content) {
+    if (!title || !content) {
       return res.status(400).json({ 
-        error: 'Missing required fields: title, subject, grade, content' 
+        error: 'Missing required fields: title, content' 
       })
     }
 
-    // Get user session (if authenticated)
-    // const { data: { session } } = await supabase.auth.getSession()
-    // const userId = session?.user?.id
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    )
 
     if (req.method === 'POST') {
       // Create new worksheet
-      // TODO: Uncomment when Supabase is configured
-      // const { data, error } = await supabase
-      //   .from('worksheets')
-      //   .insert([{
-      //     title,
-      //     description,
-      //     subject,
-      //     standard,
-      //     grade,
-      //     domain,
-      //     worksheet_type_id: worksheetTypeId,
-      //     custom_instructions: customInstructions,
-      //     content,
-      //     status: status || 'draft',
-      //     created_by: userId
-      //   }])
-      //   .select()
-      //   .single()
+      const { data, error } = await supabase
+        .from('worksheets')
+        .insert([{
+          user_id: userId,
+          title,
+          subject: subject || null,
+          grade: grade || null,
+          framework: standard || null,
+          domain: domain || null,
+          worksheet_type: worksheetType || worksheetTypeId || null,
+          custom_instructions: customInstructions || null,
+          content,
+          status: status || 'draft',
+          thumbnail_url: thumbnailUrl || null,
+          thumbnail_uploaded: thumbnailUploaded || false,
+          is_listed: isListed || false
+        }])
+        .select()
+        .single()
 
-      // if (error) throw error
-
-      // Mock response for now
-      const mockWorksheet = {
-        id: Date.now(),
-        title,
-        description,
-        subject,
-        standard,
-        grade,
-        domain,
-        worksheetTypeId,
-        customInstructions,
-        content,
-        status: status || 'draft',
-        thumbnailUploaded: false,
-        createdAt: new Date().toISOString()
-      }
+      if (error) throw error
 
       return res.status(201).json({
         success: true,
-        data: mockWorksheet
+        data: data
       })
     } else {
       // Update existing worksheet
@@ -82,32 +77,32 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Worksheet ID required for update' })
       }
 
-      // TODO: Uncomment when Supabase is configured
-      // const { data, error } = await supabase
-      //   .from('worksheets')
-      //   .update({
-      //     title,
-      //     description,
-      //     subject,
-      //     standard,
-      //     grade,
-      //     domain,
-      //     worksheet_type_id: worksheetTypeId,
-      //     custom_instructions: customInstructions,
-      //     content,
-      //     status,
-      //     updated_at: new Date().toISOString()
-      //   })
-      //   .eq('id', id)
-      //   .select()
-      //   .single()
+      const { data, error } = await supabase
+        .from('worksheets')
+        .update({
+          title,
+          subject: subject || null,
+          grade: grade || null,
+          framework: standard || null,
+          domain: domain || null,
+          worksheet_type: worksheetType || worksheetTypeId || null,
+          custom_instructions: customInstructions || null,
+          content,
+          status,
+          thumbnail_url: thumbnailUrl || null,
+          thumbnail_uploaded: thumbnailUploaded || false,
+          is_listed: isListed || false
+        })
+        .eq('id', id)
+        .eq('user_id', userId) // Ensure user can only update their own worksheets
+        .select()
+        .single()
 
-      // if (error) throw error
+      if (error) throw error
 
-      // Mock response for now
       return res.status(200).json({
         success: true,
-        data: { id, ...req.body, updatedAt: new Date().toISOString() }
+        data: data
       })
     }
   } catch (error) {

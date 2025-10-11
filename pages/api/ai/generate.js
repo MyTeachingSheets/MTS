@@ -24,6 +24,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // Require an authenticated user header (set by the client after sign-in)
+  // This is a lightweight enforcement to ensure only signed-in users trigger expensive AI calls.
+  // The client should send the current user's id in `x-user-id` header.
+  const userId = req.headers['x-user-id']
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required', details: 'Please sign in to generate worksheets' })
+  }
+
   // Validate API key is configured
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY is not configured')
@@ -43,7 +51,9 @@ export default async function handler(req, res) {
       worksheetType, 
       customInstructions,
       assistantId, // OpenAI Assistant ID (asst_*)
-      promptId // OpenAI Stored Prompt ID (pmpt_*)
+      promptId, // OpenAI Stored Prompt ID (pmpt_*)
+      customTypeId, // Custom worksheet type ID (if custom)
+      jsonSchema // Custom JSON schema (if custom type selected)
     } = req.body
 
     // Validation
@@ -62,7 +72,8 @@ export default async function handler(req, res) {
       lesson,
       lessonDescription,
       worksheetType,
-      customInstructions
+      customInstructions,
+      jsonSchema // Pass custom JSON schema if provided
     })
 
     console.log('Generating worksheet with OpenAI...')
@@ -126,8 +137,54 @@ export default async function handler(req, res) {
         user: req.headers['x-user-id'] || 'anonymous' // For user attribution in logs
       })
       
-      // Extract response text
-      aiResponse = response.output_text
+      // Extract response text from OpenAI Responses API
+      // Priority: response.text (complete) > response.output[].content > response.output_text (may be truncated)
+      
+      // Check if response.text has the complete output
+      if (response.text && typeof response.text === 'string') {
+        // Primary: Use top-level text field (most complete)
+        aiResponse = response.text
+        console.log('✅ Using response.text (length:', aiResponse.length, ')')
+      } else if (response.output && Array.isArray(response.output) && response.output[0]?.content) {
+        // Secondary: Get content from output array
+        const content = response.output[0].content
+        
+        // Content can be an array of content parts or a string
+        if (Array.isArray(content)) {
+          // If it's an array, get the text from the first content part
+          aiResponse = content[0]?.text || content[0]?.content || JSON.stringify(content[0])
+        } else if (typeof content === 'string') {
+          aiResponse = content
+        } else if (content && typeof content === 'object') {
+          // If it's an object, try to extract text field
+          aiResponse = content.text || content.content || JSON.stringify(content)
+        } else {
+          aiResponse = String(content)
+        }
+        
+        console.log('✅ Using response.output[0].content (length:', aiResponse.length, ')')
+      } else if (response.text) {
+        // Alternative: Use text field
+        aiResponse = response.text
+        console.log('✅ Using response.text (length:', aiResponse.length, ')')
+      } else if (response.output_text) {
+        // Fallback: output_text may be truncated but try anyway
+        aiResponse = response.output_text
+        console.log('⚠️  Using response.output_text (length:', aiResponse.length, ') - may be truncated')
+      } else if (response.choices && response.choices[0]?.message?.content) {
+        // Last resort: Chat completions format
+        aiResponse = response.choices[0].message.content
+        console.log('✅ Using response.choices[0].message.content (length:', aiResponse.length, ')')
+      } else {
+        console.error('❌ Unknown response format. Available keys:', Object.keys(response))
+        if (response.output) {
+          console.error('response.output type:', typeof response.output)
+          if (Array.isArray(response.output)) {
+            console.error('response.output[0] keys:', response.output[0] ? Object.keys(response.output[0]) : 'none')
+          }
+        }
+        throw new Error('Could not extract AI response from OpenAI API response')
+      }
       
       // Create completion object for consistent metadata handling
       completion = {
@@ -245,23 +302,69 @@ export default async function handler(req, res) {
       console.log('Response ID:', response.id, '| Tokens:', completion.usage.total_tokens)
     }
     
+    console.log('AI Response type:', typeof aiResponse)
+    console.log('AI Response length:', aiResponse?.length)
+    console.log('AI Response preview:', aiResponse?.substring(0, 100))
+    
     // Parse the JSON response
     let worksheetData
     try {
       worksheetData = JSON.parse(aiResponse)
     } catch (parseError) {
       console.error('Failed to parse OpenAI response:', parseError)
+      console.error('Raw response:', aiResponse?.substring(0, 500)) // Log first 500 chars
       return res.status(500).json({ 
         error: 'Failed to parse AI response',
-        details: 'The AI response was not valid JSON',
-        rawResponse: aiResponse 
+        details: 'The AI response was not valid JSON. This may indicate an OpenAI API error or configuration issue.',
+        parseError: parseError.message,
+        rawResponsePreview: aiResponse?.substring(0, 200) // Include preview for debugging
       })
+    }
+
+    // Save the generated worksheet to the database
+    let savedWorksheet = null
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      )
+
+      const { data: insertedWorksheet, error: dbError } = await supabase
+        .from('worksheets')
+        .insert([{
+          user_id: userId,
+          title: worksheetData.title || 'Untitled Worksheet',
+          subject: subject,
+          grade: grade,
+          framework: framework || null,
+          domain: lesson || null,
+          worksheet_type: worksheetType,
+          content: worksheetData,
+          custom_instructions: customInstructions || null,
+          status: 'draft',
+          is_listed: false,
+          thumbnail_uploaded: false
+        }])
+        .select()
+        .single()
+
+      if (dbError) {
+        console.error('Failed to save worksheet to database:', dbError)
+        // Don't fail the request, just log the error
+      } else {
+        savedWorksheet = insertedWorksheet
+        console.log('✅ Worksheet saved to database with ID:', savedWorksheet.id)
+      }
+    } catch (dbError) {
+      console.error('Database error:', dbError)
+      // Don't fail the request
     }
 
     // Return the generated worksheet data
     return res.status(200).json({
       success: true,
       worksheet: worksheetData,
+      worksheetId: savedWorksheet?.id || null, // Include DB ID if saved
       metadata: {
         model: completion.model,
         tokensUsed: completion.usage.total_tokens,
@@ -361,7 +464,7 @@ Ensure all content is:
 /**
  * Build the user message with specific worksheet requirements
  */
-function buildUserMessage({ subject, framework, grade, lesson, lessonDescription, worksheetType, customInstructions }) {
+function buildUserMessage({ subject, framework, grade, lesson, lessonDescription, worksheetType, customInstructions, jsonSchema }) {
   let prompt = `Generate a ${worksheetType} worksheet with the following specifications:\n\n`
   
   prompt += `Subject: ${subject}\n`
@@ -385,11 +488,18 @@ function buildUserMessage({ subject, framework, grade, lesson, lessonDescription
     prompt += `\nAdditional Instructions:\n${customInstructions}\n`
   }
   
-  // Add worksheet type specific guidance
-  prompt += `\n${getWorksheetTypeGuidance(worksheetType)}`
+  // If custom JSON schema provided, use it; otherwise use default guidance
+  if (jsonSchema) {
+    prompt += `\n\nJSON STRUCTURE REQUIRED:\nPlease follow this EXACT JSON structure for your response:\n\n`
+    prompt += JSON.stringify(jsonSchema, null, 2)
+    prompt += `\n\nGenerate all questions according to the types and counts specified in the schema.`
+  } else {
+    // Add worksheet type specific guidance for default types
+    prompt += `\n${getWorksheetTypeGuidance(worksheetType)}`
+  }
   
   // IMPORTANT: When using json_object format, must explicitly request JSON
-  prompt += `\n\nIMPORTANT: Please respond with a valid JSON object containing the complete worksheet data.`
+  prompt += `\n\nIMPORTANT: Please respond with a valid JSON object containing the complete worksheet data following the structure above.`
   
   return prompt
 }

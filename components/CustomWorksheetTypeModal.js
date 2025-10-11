@@ -1,8 +1,21 @@
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+
+// isomorphic useLayoutEffect shim: useLayoutEffect on client, useEffect on server
+let useIsomorphicLayoutEffect = useEffect
+try {
+  // eslint-disable-next-line global-require
+  const react = require('react')
+  if (typeof window !== 'undefined' && react && react.useLayoutEffect) {
+    useIsomorphicLayoutEffect = react.useLayoutEffect
+  }
+} catch (err) {
+  // ignore - fallback to useEffect
+}
 import { createPortal } from 'react-dom'
 
 export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
   const [typeName, setTypeName] = useState('')
+  const [description, setDescription] = useState('')
   // passages feature removed to keep UI minimal
   const [estimatedTime, setEstimatedTime] = useState(30)
   const [addIndividually, setAddIndividually] = useState(true)
@@ -111,6 +124,49 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
     { value: 'true_false', label: 'True/False', hasOptions: false },
     { value: 'matching', label: 'Matching', hasOptions: true }
   ]
+
+  // Helper: Generate JSON schema for AI based on question types
+  const generateJSONSchema = (questionTypesArray) => {
+    const schema = {
+      worksheet_title: "string",
+      framework: "string (optional)",
+      learning_objectives: ["array of strings (optional)"],
+      instructions: "string (optional)",
+      estimatedTime: "number (minutes)",
+      totalMarks: "number",
+      questions: []
+    }
+
+    questionTypesArray.forEach((qt, idx) => {
+      const questionSchema = {
+        number: `number (question number, sequential)`,
+        type: qt.type,
+        text: "string (the question text)",
+        marks: qt.marks
+      }
+
+      if (qt.type === 'multiple_choice' || qt.type === 'true_false') {
+        questionSchema.options = ["array of strings (answer options)"]
+        questionSchema.correct_answer = "string (the correct option)"
+      } else if (qt.type === 'matching') {
+        questionSchema.left_items = ["array of strings"]
+        questionSchema.right_items = ["array of strings"]
+        questionSchema.correct_pairs = [{ left: "string", right: "string" }]
+      } else if (qt.type === 'fill_blank') {
+        questionSchema.text = "string with _____ placeholders for blanks"
+        questionSchema.answers = ["array of correct answers for each blank"]
+      } else {
+        questionSchema.answer = "string (sample answer or marking rubric)"
+      }
+
+      // Add this question schema `count` times
+      for (let i = 0; i < qt.count; i++) {
+        schema.questions.push({ ...questionSchema })
+      }
+    })
+
+    return schema
+  }
 
   // Note: we must not return early here because hooks below must run on every render.
   // The early return will be applied right before the JSX return so hooks remain stable.
@@ -266,8 +322,18 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
         }))
       }
 
+      const jsonSchema = generateJSONSchema(finalQuestionTypes)
+
       const worksheetTypeData = {
         name: typeName,
+        description: description || '',
+        questionTypes: finalQuestionTypes.map(qt => ({ 
+          type: qt.type, 
+          count: qt.count, 
+          marks: qt.marks, 
+          options: qt.options 
+        })),
+        jsonSchema: jsonSchema,
         is_custom: true,
         default_config: {
               question_types: finalQuestionTypes.map(qt => ({ type: qt.type, count: qt.count, marks: qt.marks, ...qt.options })),
@@ -280,6 +346,7 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
       
   // Reset form
   setTypeName('')
+  setDescription('')
   // passages removed
       setEstimatedTime(30)
       setQuestionTypes([
@@ -412,7 +479,7 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
     setCurrentPage((prev) => Math.min(prev, Math.max(0, (pages.length || 1) - 1)))
   }, [typeName, estimatedTime, questionItems, questionTypes, addIndividually])
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     recomputePagination()
   }, [recomputePagination])
 
@@ -488,7 +555,17 @@ export default function CustomWorksheetTypeModal({ isOpen, onClose, onSave }) {
             
             {/* title edited inline in header */}
 
-            {/* Description removed per request */}
+            {/* Description field for custom type */}
+            <div className="form-group">
+              <label>Description (optional)</label>
+              <textarea
+                className="form-textarea"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Briefly describe this worksheet type (e.g., 'Quiz for Grade 6 Science with multiple choice and short answer')"
+                rows={2}
+              />
+            </div>
 
             {/* Est. time moved to header */}
           </div>

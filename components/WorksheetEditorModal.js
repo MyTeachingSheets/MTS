@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSave }) {
   const [editedWorksheet, setEditedWorksheet] = useState(worksheet)
   const [activeTab, setActiveTab] = useState('preview') // preview, edit
   const [saving, setSaving] = useState(false)
+
+  // Keep local editedWorksheet in sync whenever a new worksheet is provided or modal is opened
+  useEffect(() => {
+    setEditedWorksheet(worksheet || null)
+  }, [worksheet, isOpen])
 
   if (!isOpen || !worksheet) return null
 
@@ -20,14 +25,17 @@ export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSav
   }
 
   const updateTitle = (title) => {
+    if (!editedWorksheet) return
     setEditedWorksheet({ ...editedWorksheet, title })
   }
 
   const updateDescription = (description) => {
+    if (!editedWorksheet) return
     setEditedWorksheet({ ...editedWorksheet, description })
   }
 
   const updateQuestion = (sectionIndex, questionIndex, field, value) => {
+    if (!editedWorksheet) return
     const newWorksheet = { ...editedWorksheet }
     const content = { ...newWorksheet.content }
     const sections = [...content.sections]
@@ -42,6 +50,7 @@ export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSav
   }
 
   const addQuestion = (sectionIndex) => {
+    if (!editedWorksheet) return
     const newWorksheet = { ...editedWorksheet }
     const content = { ...newWorksheet.content }
     const sections = [...content.sections]
@@ -68,7 +77,7 @@ export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSav
 
   const removeQuestion = (sectionIndex, questionIndex) => {
     if (!confirm('Remove this question?')) return
-    
+    if (!editedWorksheet) return
     const newWorksheet = { ...editedWorksheet }
     const content = { ...newWorksheet.content }
     const sections = [...content.sections]
@@ -89,19 +98,23 @@ export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSav
   }
 
   const renderPreview = () => {
+    if (!editedWorksheet) return <div style={{padding:20}}>No worksheet selected</div>
+    const ew = editedWorksheet || {}
+    const content = ew.content || { estimatedTime: 0, totalMarks: 0, sections: [] }
+    const sections = content.sections || []
     return (
       <div className="worksheet-preview">
         <div className="preview-header">
-          <h2>{editedWorksheet.title}</h2>
+          <h2>{ew.title || '[Untitled]'}</h2>
           <div className="preview-meta">
-            <span><strong>Subject:</strong> {editedWorksheet.subject}</span>
-            <span><strong>Grade:</strong> {editedWorksheet.grade}</span>
-            {editedWorksheet.domain && <span><strong>Domain:</strong> {editedWorksheet.domain}</span>}
-            <span><strong>Type:</strong> {editedWorksheet.type}</span>
+            <span><strong>Subject:</strong> {ew.subject || '—'}</span>
+            <span><strong>Grade:</strong> {ew.grade || '—'}</span>
+            {ew.domain && <span><strong>Domain:</strong> {ew.domain}</span>}
+            <span><strong>Type:</strong> {ew.type || '—'}</span>
           </div>
           <div className="preview-info">
-            <span>⏱️ {editedWorksheet.content.estimatedTime} minutes</span>
-            <span>📊 Total Marks: {editedWorksheet.content.totalMarks}</span>
+            <span>⏱️ {content.estimatedTime || 0} minutes</span>
+            <span>📊 Total Marks: {content.totalMarks || 0}</span>
           </div>
         </div>
 
@@ -115,8 +128,8 @@ export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSav
           </ul>
         </div>
 
-        {editedWorksheet.content.sections.map((section, sectionIndex) => (
-          <div key={section.id} className="preview-section">
+        {sections.map((section, sectionIndex) => (
+          <div key={section.id || sectionIndex} className="preview-section">
             {section.type === 'questions' && (
               <>
                 <h3>{section.title}</h3>
@@ -175,6 +188,7 @@ export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSav
   }
 
   const renderEditor = () => {
+    if (!editedWorksheet) return <div style={{padding:20}}>No worksheet selected</div>
     return (
       <div className="worksheet-editor">
         <div className="editor-section">
@@ -200,7 +214,7 @@ export default function WorksheetEditorModal({ isOpen, worksheet, onClose, onSav
           </div>
         </div>
 
-        {editedWorksheet.content.sections.map((section, sectionIndex) => (
+        {sections.map((section, sectionIndex) => (
           <div key={section.id} className="editor-section">
             {section.type === 'questions' && (
               <>

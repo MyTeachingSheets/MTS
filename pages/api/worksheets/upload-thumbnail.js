@@ -15,57 +15,61 @@ export default async function handler(req, res) {
       })
     }
 
-    // Get user session
-    // const { data: { session } } = await supabase.auth.getSession()
-    // if (!session) {
-    //   return res.status(401).json({ error: 'Unauthorized' })
-    // }
+    // Convert base64 data URL to buffer
+    const matches = imageData.match(/^data:(image\/[-\w+.]+);base64,(.+)$/)
+    if (!matches) {
+      return res.status(400).json({ error: 'Invalid imageData format' })
+    }
 
-    // TODO: Uncomment when Supabase Storage is configured
-    // // Convert base64 to buffer
-    // const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '')
-    // const buffer = Buffer.from(base64Data, 'base64')
+    const mimeType = matches[1]
+    const base64Data = matches[2]
+    const buffer = Buffer.from(base64Data, 'base64')
 
-    // // Generate unique filename
-    // const fileExt = imageData.match(/data:image\/(\w+);/)?.[1] || 'jpg'
-    // const fileName = `${worksheetId}_${Date.now()}.${fileExt}`
-    // const filePath = `worksheets/${fileName}`
+    // Generate unique filename
+    const fileExt = mimeType.split('/')[1] || 'jpg'
+    const fileName = `${worksheetId}_${Date.now()}.${fileExt}`
+    const filePath = `worksheets/${fileName}`
 
-    // // Upload to Supabase Storage
-    // const { error: uploadError } = await supabase.storage
-    //   .from('worksheet-thumbnails')
-    //   .upload(filePath, buffer, {
-    //     contentType: `image/${fileExt}`,
-    //     cacheControl: '3600',
-    //     upsert: true
-    //   })
+    // Ensure supabase storage client is available
+    if (!supabase || !supabase.storage || typeof supabase.storage.from !== 'function') {
+      console.error('Supabase storage client not available on server. Environment variables may be missing.')
+      return res.status(500).json({ error: 'Supabase storage not configured on server. Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_KEY.' })
+    }
 
-    // if (uploadError) throw uploadError
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('worksheet-thumbnails')
+      .upload(filePath, buffer, {
+        contentType: mimeType,
+        cacheControl: '3600',
+        upsert: true
+      })
 
-    // // Get public URL
-    // const { data: { publicUrl } } = supabase.storage
-    //   .from('worksheet-thumbnails')
-    //   .getPublicUrl(filePath)
+    if (uploadError) throw uploadError
 
-    // // Update worksheet record
-    // const { error: updateError } = await supabase
-    //   .from('worksheets')
-    //   .update({ 
-    //     thumbnail_url: publicUrl,
-    //     thumbnail_uploaded: true,
-    //     updated_at: new Date().toISOString()
-    //   })
-    //   .eq('id', worksheetId)
+    // Get public URL
+    const { data: publicUrlData } = await supabase.storage
+      .from('worksheet-thumbnails')
+      .getPublicUrl(filePath)
 
-    // if (updateError) throw updateError
+    const publicUrl = publicUrlData?.publicUrl || null
 
-    // Mock response for now
-    const mockPublicUrl = imageData // Return the data URL as mock URL
+    // Update worksheet record
+    const { error: updateError } = await supabase
+      .from('worksheets')
+      .update({ 
+        thumbnail_url: publicUrl,
+        thumbnail_uploaded: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', worksheetId)
+
+    if (updateError) throw updateError
 
     return res.status(200).json({
       success: true,
       data: {
-        thumbnailUrl: mockPublicUrl,
+        thumbnailUrl: publicUrl,
         worksheetId
       }
     })
