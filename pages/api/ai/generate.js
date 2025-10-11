@@ -98,24 +98,28 @@ export default async function handler(req, res) {
 
     // Priority: Stored Prompt (pmpt_*) > Assistant (asst_*) > Inline prompt
     
-    // If Stored Prompt ID is provided (pmpt_*), use it directly with Chat Completions
-    // The prompt ID should be included in metadata for tracking in OpenAI logs
+    // If Stored Prompt ID is provided (pmpt_*), use it with Chat Completions
+    // Note: OpenAI stored prompts are meant to be copied/stored in your database,
+    // not fetched dynamically via API. The prompt_id is for tracking purposes.
     if (usePromptId) {
-      console.log('Using OpenAI Stored Prompt (ID:', usePromptId + ')')
+      console.log('Using stored prompt configuration (ID:', usePromptId + ')')
       
-      // Get model settings - use from template or defaults
-      const model = templateConfig?.model || 'gpt-4.1-nano'
-      const temperature = templateConfig?.temperature || 1.00
-      const maxTokens = templateConfig?.max_tokens || 2048
-      
-      // Get system prompt - use from template or default
+      // Use the system_prompt from template config (you should copy your prompt content there)
+      // If you haven't added the prompt content to the database, it will use the default
       const systemContent = templateConfig?.system_prompt || buildSystemPrompt()
       
-      console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
-      console.log(`Prompt ID: ${usePromptId}`)
+      if (!templateConfig?.system_prompt) {
+        console.warn('⚠️ No system_prompt found in template config. Using default prompt.')
+        console.warn('💡 TIP: Copy your OpenAI prompt content to the system_prompt column in your database.')
+      }
       
-      // Call Chat Completions with prompt ID in metadata
-      // OpenAI will track this in logs and associate it with your stored prompt
+      // Use model settings from template config or defaults
+      const model = templateConfig?.model || 'gpt-4o'
+      const temperature = templateConfig?.temperature || 0.7
+      const maxTokens = templateConfig?.max_tokens || 4000
+      
+      console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
+      
       completion = await openai.chat.completions.create({
         model,
         messages: [
@@ -125,9 +129,9 @@ export default async function handler(req, res) {
         temperature,
         max_tokens: maxTokens,
         response_format: { type: 'json_object' },
-        store: true,
+        store: true, // Enable conversation storage
         metadata: {
-          prompt_id: usePromptId  // This appears in OpenAI logs
+          prompt_id: usePromptId // Track which prompt configuration was used
         }
       })
       
@@ -216,17 +220,36 @@ export default async function handler(req, res) {
       aiResponse = completion.choices[0].message.content
     }
     
-    // Parse the JSON response
+    // Parse the response (JSON or text based on response_format)
     let worksheetData
-    try {
-      worksheetData = JSON.parse(aiResponse)
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', parseError)
-      return res.status(500).json({ 
-        error: 'Failed to parse AI response',
-        details: 'The AI response was not valid JSON',
-        rawResponse: aiResponse 
-      })
+    const responseFormat = templateConfig?.response_format || 'json_object'
+    
+    if (responseFormat === 'json_object') {
+      // Try to parse as JSON
+      try {
+        worksheetData = JSON.parse(aiResponse)
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', parseError)
+        return res.status(500).json({ 
+          error: 'Failed to parse AI response',
+          details: 'The AI response was not valid JSON',
+          rawResponse: aiResponse 
+        })
+      }
+    } else {
+      // Text format - wrap in a simple structure
+      worksheetData = {
+        title: `${subject} Worksheet - Grade ${grade}`,
+        description: `Generated worksheet for ${subject}`,
+        subject,
+        grade,
+        content: aiResponse, // Raw text content
+        format: 'text',
+        sections: [{
+          title: 'Worksheet Content',
+          content: aiResponse
+        }]
+      }
     }
 
     // Return the generated worksheet data
@@ -237,7 +260,8 @@ export default async function handler(req, res) {
         model: completion.model,
         tokensUsed: completion.usage.total_tokens,
         promptTokens: completion.usage.prompt_tokens,
-        completionTokens: completion.usage.completion_tokens
+        completionTokens: completion.usage.completion_tokens,
+        format: responseFormat
       }
     })
 
