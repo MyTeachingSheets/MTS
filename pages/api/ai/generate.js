@@ -98,14 +98,12 @@ export default async function handler(req, res) {
 
     // Priority: Stored Prompt (pmpt_*) > Assistant (asst_*) > Inline prompt
     
-    // If Stored Prompt ID is provided (pmpt_*), use it with Chat Completions
-    // Note: OpenAI stored prompts are meant to be copied/stored in your database,
-    // not fetched dynamically via API. The prompt_id is for tracking purposes.
+    // If Stored Prompt ID is provided (pmpt_*), use Responses API
+    // The Responses API properly stores logs in OpenAI dashboard and uses prompt configuration
     if (usePromptId) {
-      console.log('Using stored prompt configuration (ID:', usePromptId + ')')
+      console.log('Using OpenAI Responses API with prompt ID:', usePromptId)
       
-      // Use the system_prompt from template config (you should copy your prompt content there)
-      // If you haven't added the prompt content to the database, it will use the default
+      // Use the system_prompt from template config
       const systemContent = templateConfig?.system_prompt || buildSystemPrompt()
       
       if (!templateConfig?.system_prompt) {
@@ -113,29 +111,51 @@ export default async function handler(req, res) {
         console.warn('💡 TIP: Copy your OpenAI prompt content to the system_prompt column in your database.')
       }
       
-      // Use model settings from template config or defaults
-      const model = templateConfig?.model || 'gpt-4o'
-      const temperature = templateConfig?.temperature || 0.7
-      const maxTokens = templateConfig?.max_tokens || 4000
+      // Get model settings from template config or use defaults
+      // Note: When using prompt_id, OpenAI will use the model configured in the prompt
+      const model = templateConfig?.model || 'gpt-5'
+      const temperature = templateConfig?.temperature || 1.0
+      const maxTokens = templateConfig?.max_tokens || 2048
       
-      console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
+      console.log(`Model: ${model}, Temperature: ${temperature}, Max Output Tokens: ${maxTokens}`)
+      console.log(`Prompt will use configuration from OpenAI dashboard (prompt_id: ${usePromptId})`)
       
-      completion = await openai.chat.completions.create({
+      // Use Responses API - this will appear in OpenAI dashboard logs
+      const response = await openai.responses.create({
         model,
-        messages: [
+        input: [
           { role: 'system', content: systemContent },
           { role: 'user', content: userMessage }
         ],
         temperature,
-        max_tokens: maxTokens,
+        max_output_tokens: maxTokens,
         response_format: { type: 'json_object' },
-        store: true, // Enable conversation storage
+        store: true, // This makes it appear in OpenAI Logs/Responses
         metadata: {
-          prompt_id: usePromptId // Track which prompt configuration was used
-        }
+          prompt_id: usePromptId,
+          subject: subject,
+          grade: grade,
+          worksheetType: worksheetType,
+          framework: framework || 'none',
+          lesson: lesson || 'none'
+        },
+        user: req.headers['x-user-id'] || 'anonymous' // For user attribution in logs
       })
       
-      aiResponse = completion.choices[0].message.content
+      // Extract response text
+      aiResponse = response.output_text
+      
+      // Create completion object for consistent metadata handling
+      completion = {
+        model: response.model || model,
+        usage: response.usage || { 
+          total_tokens: 0, 
+          prompt_tokens: 0, 
+          completion_tokens: 0 
+        }
+      }
+      
+      console.log('Response ID:', response.id, '| Tokens:', completion.usage.total_tokens)
       
     } else if (useAssistantId) {
       // If Assistant ID is provided, use Assistants API (asst_*)
@@ -191,65 +211,66 @@ export default async function handler(req, res) {
       }
       
     } else {
-      // Use standard Chat Completions API with inline prompt
-      console.log('Using Chat Completions API with inline prompt')
+      // Use Responses API with inline prompt (fallback when no prompt_id)
+      console.log('Using Responses API with inline prompt (no prompt_id configured)')
       
       // Use system prompt from template config or fallback to default
       const systemPrompt = templateConfig?.system_prompt || buildSystemPrompt()
       
       // Use model settings from template config (fallback to hardcoded defaults)
-      // Note: When using Assistant ID, these settings are ignored (configured in OpenAI platform)
-      const model = templateConfig?.model || 'gpt-4o'
-      const temperature = templateConfig?.temperature || 0.7
-      const maxTokens = templateConfig?.max_tokens || 4000
+      const model = templateConfig?.model || 'gpt-5'
+      const temperature = templateConfig?.temperature || 1.0
+      const maxTokens = templateConfig?.max_tokens || 2048
       const responseFormat = templateConfig?.response_format || 'json_object'
       
-      console.log(`Model: ${model}, Temperature: ${temperature}, Max Tokens: ${maxTokens}`)
+      console.log(`Model: ${model}, Temperature: ${temperature}, Max Output Tokens: ${maxTokens}`)
       
-      completion = await openai.chat.completions.create({
+      // Use Responses API for consistent logging
+      const response = await openai.responses.create({
         model,
-        messages: [
+        input: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
         ],
         temperature,
-        max_tokens: maxTokens,
-        response_format: { type: responseFormat }
+        max_output_tokens: maxTokens,
+        response_format: { type: responseFormat },
+        store: true,
+        metadata: {
+          subject: subject,
+          grade: grade,
+          worksheetType: worksheetType,
+          framework: framework || 'none',
+          lesson: lesson || 'none'
+        },
+        user: req.headers['x-user-id'] || 'anonymous'
       })
       
-      aiResponse = completion.choices[0].message.content
+      aiResponse = response.output_text
+      
+      completion = {
+        model: response.model || model,
+        usage: response.usage || { 
+          total_tokens: 0, 
+          prompt_tokens: 0, 
+          completion_tokens: 0 
+        }
+      }
+      
+      console.log('Response ID:', response.id, '| Tokens:', completion.usage.total_tokens)
     }
     
-    // Parse the response (JSON or text based on response_format)
+    // Parse the JSON response
     let worksheetData
-    const responseFormat = templateConfig?.response_format || 'json_object'
-    
-    if (responseFormat === 'json_object') {
-      // Try to parse as JSON
-      try {
-        worksheetData = JSON.parse(aiResponse)
-      } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', parseError)
-        return res.status(500).json({ 
-          error: 'Failed to parse AI response',
-          details: 'The AI response was not valid JSON',
-          rawResponse: aiResponse 
-        })
-      }
-    } else {
-      // Text format - wrap in a simple structure
-      worksheetData = {
-        title: `${subject} Worksheet - Grade ${grade}`,
-        description: `Generated worksheet for ${subject}`,
-        subject,
-        grade,
-        content: aiResponse, // Raw text content
-        format: 'text',
-        sections: [{
-          title: 'Worksheet Content',
-          content: aiResponse
-        }]
-      }
+    try {
+      worksheetData = JSON.parse(aiResponse)
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', parseError)
+      return res.status(500).json({ 
+        error: 'Failed to parse AI response',
+        details: 'The AI response was not valid JSON',
+        rawResponse: aiResponse 
+      })
     }
 
     // Return the generated worksheet data
@@ -260,8 +281,7 @@ export default async function handler(req, res) {
         model: completion.model,
         tokensUsed: completion.usage.total_tokens,
         promptTokens: completion.usage.prompt_tokens,
-        completionTokens: completion.usage.completion_tokens,
-        format: responseFormat
+        completionTokens: completion.usage.completion_tokens
       }
     })
 
